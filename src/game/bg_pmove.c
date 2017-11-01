@@ -397,7 +397,7 @@ static void PM_RedirectMomentum( vec3_t wishdir, float wishspeed,
     return;
 
   // Don't redirect momentum unless moving forward.
-  if( pm->ps->movementDir != 0 )
+  if( pm->cmd.forwardmove <= 0 )
     return;
 
   airaccel = BG_Class( pm->ps->stats[ STAT_CLASS ] )->airAcceleration;
@@ -811,18 +811,21 @@ static qboolean PM_CheckWallJump( void )
     return qfalse;
 
   // Find out if we look at the wall enough.
-  VectorCopy( pml.forward, horizLookDir );
-  VectorCopy( wall.plane.normal, horizWallNormal );
-  horizLookDir[ 2 ] = 0.0f;
-  horizWallNormal[ 2 ] = 0.0f;
-  VectorNormalize( horizLookDir );
-  VectorNormalize( horizWallNormal );
-  horizWallLook = MAX( 0.0f, -DotProduct( horizWallNormal, horizLookDir ) ); 
-  if( horizWallLook < 0.4f )
-    return qfalse;
+  if( !( pm->cmd.rightmove != 0.0f || pm->cmd.forwardmove <= 0.0f ) )
+  {
+    VectorCopy( pml.forward, horizLookDir );
+    VectorCopy( wall.plane.normal, horizWallNormal );
+    horizLookDir[ 2 ] = 0.0f;
+    horizWallNormal[ 2 ] = 0.0f;
+    VectorNormalize( horizLookDir );
+    VectorNormalize( horizWallNormal );
+    horizWallLook = MAX( 0.0f, -DotProduct( horizWallNormal, horizLookDir ) ); 
+    if( horizWallLook < 0.4f )
+      return qfalse;
+  }
 
-  // Calculate how much we look at the wall.
-  wallLook = MAX( 0.0f, -DotProduct( wall.plane.normal, lookDir ) ); 
+  // Calculate how much we look at or away from the wall.
+  wallLook = fabs( -DotProduct( wall.plane.normal, lookDir ) ); 
 
   // Set grapple point to wall normal.
   VectorCopy( wall.plane.normal, pm->ps->grapplePoint );
