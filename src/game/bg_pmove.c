@@ -47,6 +47,10 @@ float pm_spectatorfriction = 5.0f;
 
 int   c_pmove = 0;
 
+static vec3_t upNormal = { 0.0f, 0.0f, 1.0f };
+
+#define MIX(x, y, factor) ((x) * (1 - (factor)) + (y) * (factor))
+
 /*
 ===============
 PM_AddEvent
@@ -397,7 +401,7 @@ static void PM_RedirectMomentum( vec3_t wishdir, float wishspeed,
     return;
 
   // Don't redirect momentum unless moving forward.
-  if( pm->cmd.forwardmove <= 0 )
+  if( pm->cmd.forwardmove <= 0 || abs( pm->cmd.rightmove ) >= 10 )
     return;
 
   airaccel = BG_Class( pm->ps->stats[ STAT_CLASS ] )->airAcceleration;
@@ -422,37 +426,202 @@ static void PM_RedirectMomentum( vec3_t wishdir, float wishspeed,
 
 /*
 ==============
-PM_WallCoast
+PM_IsWall
 
-Modifies wishDir as to allow coasting along walls at full speed even when the
-desired movement direction is not perfectly parallel with the wall.
+Checks if the given surface is a wall.
 ==============
 */
-static void PM_WallCoast( vec3_t wishDir )
+static qboolean PM_IsWall( trace_t *trace )
 {
-  trace_t wall;
-  vec3_t searchEnd;
-  vec3_t result;
+  return trace->fraction < 1.0f && trace->plane.normal[ 2 ] < MIN_WALK_NORMAL;
+}
+
+
+/*
+==============
+PM_VectorCloseToZero
+
+Checks if a vector is close to zero.
+==============
+*/
+static qboolean PM_VectorCloseToZero( vec3_t vec )
+{
+  return fabs( vec[ 0 ] + vec[ 1 ] + vec[ 2 ] ) < 0.002f;
+}
+
+
+/*
+==============
+PM_WallCoast
+
+Modifies `wishDir` as to allow coasting along walls at full speed even when the
+desired movement direction is not perfectly parallel with the wall. The
+`groundNormal` parameter is only used for ambiguity resolution.
+==============
+*/
+static void PM_WallCoast( vec3_t wishDir, vec3_t groundNormal )
+{
+  static float SLOWDOWN_THRESHOLD = 0.95f;
+
+  vec3_t groundLookDir;    //- Look direction projected onto the ground.
+  vec3_t groundWishDir;    //- Desired direction projected onto the ground.
+  vec3_t groundWallNormal; //- Wall normal projected onto the ground.
+  trace_t wall;            //- The wall the player is running into.
+  vec3_t  searchEnd;       //- Where to stop searching for a wall.
+  vec3_t  result;          //- Resulting direction.
+  float   alignment;       //- How much do the desired movement direction and
+                           //  the look direction align (0 to 1).
+  float   ramFactor;       //- How much is the player is moving into the wall
+                           //  (0 to 1).
 
   // Find a wall the player is running into.
   VectorMA( pm->ps->origin, 0.25f, wishDir, searchEnd );
   pm->trace( &wall, pm->ps->origin, pm->mins, pm->maxs,
              searchEnd, pm->ps->clientNum, pm->tracemask );
 
-  // Nothing found or not steep enough to be considered a wall.
-  if ( wall.fraction >= 1.0f || wall.plane.normal[ 2 ] >= MIN_WALK_NORMAL )
+  // Nothing found or not a wall.
+  if ( !PM_IsWall( &wall ) )
     return;
 
+  // Project the look direction and the desired direction onto the ground.
+  ProjectPointOnPlane( groundLookDir, pml.forward, groundNormal );
+  ProjectPointOnPlane( groundWishDir, wishDir, groundNormal );
+  VectorNormalize( groundLookDir );
+  VectorNormalize( groundWishDir );
+
+  // Check how much the look direction aligns with the desired direction.
+  alignment = DotProduct( groundLookDir, groundWishDir );
+
+  // Project the desired direction onto the wall.
   ProjectPointOnPlane( result, wishDir, wall.plane.normal );
 
-  // Only apply if the direction is well-defined enough.
-  if( fabs( result[ 0 ] + result[ 1 ] + result[ 2 ] ) >= 0.005f )
+  // If we are moving directly towards the wall, try to guess the intended
+  // movement direction.
+  if( PM_VectorCloseToZero( result ) )
   {
-    VectorNormalize( result );
-    VectorCopy( result, wishDir );
+    // The look direction and the desired movement direction are orthogonal.
+    // We have no infomration to work with, give up.
+    if( fabs( alignment ) < 0.025f )
+      return;
+
+    // Pick either the look direction or the opposite of it, whichever aligns
+    // with the original desired direction best.
+    if( alignment > 0.0f )
+      VectorCopy( groundLookDir, result );
+    else
+      VectorNegate( groundLookDir, result );
+
+    // Project the picked direction onto the wall. If this direction would still
+    // lead the player directly into the wall (this happens when moving directly
+    // forward or backward), give up.
+    ProjectPointOnPlane( result, result, wall.plane.normal );
+    if( PM_VectorCloseToZero( result ) )
+      return;
   }
+
+  // Normalize the resulting direction.
+  VectorNormalize( result );
+
+  // Calculate how much the player is moving into the wall.
+  ProjectPointOnPlane( groundWallNormal, wall.plane.normal, groundNormal );
+  VectorNormalize( groundWallNormal );
+  ramFactor = MAX( 0.0f, -DotProduct( groundWishDir, groundWallNormal ) );
+
+  // Make sure that the transition from one direction to the opposite is not too
+  // sudden. When moving directly or almost directly into the wall, do not give
+  // the player full speed. Since we only have direct control over the movement
+  // direction and not the speed in this function, this is accomplished by
+  // directing some of the velocity into the wall, allowing PM_ClipVelocity to
+  // do the rest of the job.
+  if( ramFactor > SLOWDOWN_THRESHOLD )
+  {
+    float diff;
+    float maxDiff;
+    float fraction;
+    float minFraction;
+
+    // Calculate how much of the speed to keep.
+    diff = ramFactor - SLOWDOWN_THRESHOLD;
+    maxDiff = 1.0f - SLOWDOWN_THRESHOLD;
+    fraction = 1.0f - diff * ( 1.0f / maxDiff );
+
+    // Always keep some speed unless going directly forward.
+    if ( alignment <= 0.95f )
+    {
+      static float MIN_FRACTION = 0.4f;
+      fraction = MIN_FRACTION + ( fraction * ( 1.0f - MIN_FRACTION ) );
+    }
+
+    // Modify the resulting direction.
+    VectorScale( result, fraction, result );
+    VectorMA( result, fraction - 1.0f, groundWallNormal, result );
+    VectorNormalize( result );
+  }
+
+  // Set the new desired direction.
+  VectorCopy( result, wishDir );
 }
 
+
+/*
+==============
+PM_ScanForWall
+
+Scans for a wall in the given direction.
+==============
+*/
+static qboolean PM_ScanForWall( trace_t *wall, float xOffset, float yOffset )
+{
+  vec3_t searchEnd;
+
+  searchEnd[ 0 ] = pm->ps->origin[ 0 ] + xOffset;
+  searchEnd[ 1 ] = pm->ps->origin[ 1 ] + yOffset;
+  searchEnd[ 2 ] = pm->ps->origin[ 2 ];
+
+  pm->trace( wall, pm->ps->origin, pm->mins, pm->maxs,
+             searchEnd, pm->ps->clientNum, pm->tracemask );
+
+  return PM_IsWall( wall );
+}
+
+
+/*
+==============
+PM_GetWallSpeedFactor
+
+Checks if the player is in contact with a wall.
+==============
+*/
+static float PM_GetWallSpeedFactor( void )
+{
+  trace_t  wall;      //- Wall we are moving along.
+  qboolean foundWall; //- Whether we have found a wall.
+  vec3_t   lookDir;   //- Look direction (horizontal only).
+  vec3_t   normal;    //- Wall normal (horizontal only).
+  float    alignment; //- How much the look direction aligns with the wall
+                      //  direction (from 0 to 1).
+
+  // Find the wall we are moving along.
+  foundWall = PM_ScanForWall( &wall, 0.5f, 0.5f );
+  if( !foundWall ) foundWall = PM_ScanForWall( &wall, -0.5f, 0.5f );
+  if( !foundWall ) foundWall = PM_ScanForWall( &wall, 0.5f, -0.5f );
+  if( !foundWall ) foundWall = PM_ScanForWall( &wall, -0.5f, -0.5f );
+  if( !foundWall ) return 0.0f;
+
+  // Get the horizontal components of the look direction and the wall normal.
+  VectorCopy( pml.forward, lookDir );
+  VectorCopy( wall.plane.normal, normal );
+  lookDir[ 2 ] = 0.0f;
+  normal[ 2 ] = 0.0f;
+  VectorNormalize( lookDir );
+  VectorNormalize( normal );
+
+  // Calculate the alignment.
+  alignment = 1.0f - fabs( DotProduct( lookDir, normal ) );
+
+  // Use sqrt to make this easier to use. MAX is used just in case.
+  return sqrt( MAX( 0.0f, alignment ) );
+}
 
 /*
 ============
@@ -465,11 +634,17 @@ without getting a sqrt(2) distortion in speed.
 */
 static float PM_CmdScale( usercmd_t *cmd, qboolean zFlight )
 {
+  static float HUMAN_WALL_MODIFIER = 1.15f;
+  static float ALIEN_WALL_MODIFIER = 1.2f;
+
   int         max;
   float       total;
   float       scale;
   float       modifier = 1.0f;
-  
+  float       wallFactor;
+
+  wallFactor = PM_GetWallSpeedFactor( );
+
   if( pm->ps->stats[ STAT_TEAM ] == TEAM_HUMANS && pm->ps->pm_type == PM_NORMAL )
   {
     qboolean wasSprinting;
@@ -492,7 +667,7 @@ static float PM_CmdScale( usercmd_t *cmd, qboolean zFlight )
       sprint = cmd->buttons & BUTTON_SPRINT;
 
     if( sprint )
-      pm->ps->stats[ STAT_STATE ] |= SS_SPEEDBOOST;      
+      pm->ps->stats[ STAT_STATE ] |= SS_SPEEDBOOST;
     else if( wasSprinting && !sprint )
       pm->ps->stats[ STAT_STATE ] &= ~SS_SPEEDBOOST;
 
@@ -509,11 +684,13 @@ static float PM_CmdScale( usercmd_t *cmd, qboolean zFlight )
       //can't run backwards
       modifier *= HUMAN_BACK_MODIFIER;
     }
-    else if( cmd->rightmove )
+    else if( cmd->rightmove != 0 )
     {
       //can't move that fast sideways
-      modifier *= HUMAN_SIDE_MODIFIER;
+      modifier *= MIX( HUMAN_SIDE_MODIFIER, 1.0f, wallFactor );
     }
+
+    modifier *= MIX( 1.0f, HUMAN_WALL_MODIFIER, wallFactor);
 
     if( !zFlight )
     {
@@ -542,6 +719,10 @@ static float PM_CmdScale( usercmd_t *cmd, qboolean zFlight )
       else
         modifier *= PCLOUD_MODIFIER;
     }
+  }
+  else if( pm->ps->stats[ STAT_TEAM ] == TEAM_ALIENS )
+  {
+    modifier *= MIX( 1.0f, ALIEN_WALL_MODIFIER, wallFactor );
   }
 
   if( pm->ps->weapon == WP_ALEVEL4 && pm->ps->pm_flags & PMF_CHARGE )
@@ -582,7 +763,6 @@ static float PM_CmdScale( usercmd_t *cmd, qboolean zFlight )
 
   return scale;
 }
-
 
 /*
 ================
@@ -733,8 +913,6 @@ PM_CheckWallJump
 */
 static qboolean PM_CheckWallJump( void )
 {
-  vec3_t upNormal = { 0.0f, 0.0f, 1.0f };
-
   trace_t wall;           //- Which wall we are jumping off.
   vec3_t searchEnd;       //- Point of contact with the wall.
   vec3_t searchDir;       //- Where to search for a wall.
@@ -811,21 +989,18 @@ static qboolean PM_CheckWallJump( void )
     return qfalse;
 
   // Find out if we look at the wall enough.
-  if( !( pm->cmd.rightmove != 0.0f || pm->cmd.forwardmove <= 0.0f ) )
-  {
-    VectorCopy( pml.forward, horizLookDir );
-    VectorCopy( wall.plane.normal, horizWallNormal );
-    horizLookDir[ 2 ] = 0.0f;
-    horizWallNormal[ 2 ] = 0.0f;
-    VectorNormalize( horizLookDir );
-    VectorNormalize( horizWallNormal );
-    horizWallLook = MAX( 0.0f, -DotProduct( horizWallNormal, horizLookDir ) ); 
-    if( horizWallLook < 0.4f )
-      return qfalse;
-  }
+  VectorCopy( pml.forward, horizLookDir );
+  VectorCopy( wall.plane.normal, horizWallNormal );
+  horizLookDir[ 2 ] = 0.0f;
+  horizWallNormal[ 2 ] = 0.0f;
+  VectorNormalize( horizLookDir );
+  VectorNormalize( horizWallNormal );
+  horizWallLook = MAX( 0.0f, -DotProduct( horizWallNormal, horizLookDir ) );
+  if( horizWallLook < 0.4f )
+    return qfalse;
 
   // Calculate how much we look at or away from the wall.
-  wallLook = fabs( -DotProduct( wall.plane.normal, lookDir ) ); 
+  wallLook = fabs( -DotProduct( wall.plane.normal, lookDir ) );
 
   // Set grapple point to wall normal.
   VectorCopy( wall.plane.normal, pm->ps->grapplePoint );
@@ -959,7 +1134,7 @@ static qboolean PM_CheckJump( void )
     return qfalse;
 
   //no bunny hopping off a dodge
-  if( pm->ps->stats[ STAT_TEAM ] == TEAM_HUMANS && 
+  if( pm->ps->stats[ STAT_TEAM ] == TEAM_HUMANS &&
       pm->ps->pm_time )
     return qfalse;
 
@@ -1005,7 +1180,7 @@ static qboolean PM_CheckJump( void )
 
   // jump away from wall
   BG_GetClientNormal( pm->ps, normal );
-  
+
   if( pm->ps->velocity[ 2 ] < 0 )
     pm->ps->velocity[ 2 ] = 0;
 
@@ -1139,7 +1314,7 @@ static qboolean PM_CheckDodge( void )
   vec3_t right, forward, velocity = { 0.0f, 0.0f, 0.0f };
   float jump, sideModifier;
   int i;
-  
+
   if( pm->ps->stats[ STAT_TEAM ] != TEAM_HUMANS )
     return qfalse;
 
@@ -1179,7 +1354,7 @@ static qboolean PM_CheckDodge( void )
   jump = BG_Class( pm->ps->stats[ STAT_CLASS ] )->jumpMagnitude;
   if( pm->cmd.rightmove && pm->cmd.forwardmove )
     jump *= ( 0.5f * M_SQRT2 );
-  
+
   // Weaken dodge if slowed
   if( ( pm->ps->stats[ STAT_STATE ] & SS_SLOWLOCKED )  ||
       ( pm->ps->stats[ STAT_STATE ] & SS_CREEPSLOWED ) ||
@@ -1300,7 +1475,7 @@ static void PM_WaterMove( void )
   if( wishspeed > pm->ps->speed * pm_swimScale )
     wishspeed = pm->ps->speed * pm_swimScale;
 
-  PM_WallCoast( wishdir );
+  PM_WallCoast( wishdir, upNormal );
   PM_Accelerate( wishdir, wishspeed, pm_wateraccelerate );
 
   // make sure we can go up slopes easily under water
@@ -1351,7 +1526,7 @@ static void PM_JetPackMove( void )
   VectorCopy( wishvel, wishdir );
   wishspeed = VectorNormalize( wishdir );
 
-  PM_WallCoast( wishdir );
+  PM_WallCoast( wishdir, upNormal );
   PM_Accelerate( wishdir, wishspeed, pm_flyaccelerate );
 
   PM_StepSlideMove( qfalse, qfalse );
@@ -1404,7 +1579,7 @@ static void PM_FlyMove( void )
   VectorCopy( wishvel, wishdir );
   wishspeed = VectorNormalize( wishdir );
 
-  PM_WallCoast( wishdir );
+  PM_WallCoast( wishdir, upNormal );
   PM_Accelerate( wishdir, wishspeed, pm_flyaccelerate );
 
   PM_StepSlideMove( qfalse, qfalse );
@@ -1464,9 +1639,9 @@ static void PM_AirMove( void )
     controlFactor = 1.0f;
 
   if( PM_IsMarauder( ) )
-    PM_RedirectMomentum( wishdir, wishspeed, 1.0f * controlFactor );
+    PM_RedirectMomentum( wishdir, wishspeed, 1.5f * controlFactor );
 
-  PM_WallCoast( wishdir );
+  PM_WallCoast( wishdir, upNormal );
   PM_AccelerateHorizontal( wishdir, wishspeed,
     BG_Class( pm->ps->stats[ STAT_CLASS ] )->airAcceleration * controlFactor );
 
@@ -1686,7 +1861,7 @@ static void PM_WalkMove( void )
   else
     accelerate = BG_Class( pm->ps->stats[ STAT_CLASS ] )->acceleration;
 
-  PM_WallCoast( wishdir );
+  PM_WallCoast( wishdir, pml.groundTrace.plane.normal );
   PM_Accelerate( wishdir, wishspeed, accelerate );
 
   //Com_Printf("velocity = %1.1f %1.1f %1.1f\n", pm->ps->velocity[0], pm->ps->velocity[1], pm->ps->velocity[2]);
@@ -2727,6 +2902,7 @@ PM_Footsteps
 static void PM_Footsteps( void )
 {
   float     bobmove;
+  float     wallFactor;
   int       old;
   qboolean  footstep;
 
@@ -2898,6 +3074,9 @@ static void PM_Footsteps( void )
 
   if( pm->ps->stats[ STAT_STATE ] & SS_SPEEDBOOST )
     bobmove *= HUMAN_SPRINT_MODIFIER;
+
+  wallFactor = PM_GetWallSpeedFactor( );
+  bobmove *= MIX( 1.0f, 1.15f, wallFactor );
 
   // check for footstep / splash sounds
   old = pm->ps->bobCycle;
