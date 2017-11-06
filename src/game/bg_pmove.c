@@ -204,7 +204,7 @@ PM_ForceLegsAnim
 */
 static void PM_ForceLegsAnim( int anim )
 {
-  //legsTimer is clamped too tightly for nonsegmented models
+  //legsTimer is clamped too tightly for nonsegmentedf models
   if( !( pm->ps->persistant[ PERS_STATE ] & PS_NONSEGMODEL ) )
     pm->ps->legsTimer = 0;
   else
@@ -570,17 +570,12 @@ PM_ScanForWall
 Scans for a wall in the given direction.
 ==============
 */
-static qboolean PM_ScanForWall( trace_t *wall, float xOffset, float yOffset )
+static qboolean PM_ScanForWall( trace_t *wall, vec3_t searchDir )
 {
   vec3_t searchEnd;
-
-  searchEnd[ 0 ] = pm->ps->origin[ 0 ] + xOffset;
-  searchEnd[ 1 ] = pm->ps->origin[ 1 ] + yOffset;
-  searchEnd[ 2 ] = pm->ps->origin[ 2 ];
-
+  VectorMA( pm->ps->origin, 0.25f, searchDir, searchEnd );
   pm->trace( wall, pm->ps->origin, pm->mins, pm->maxs,
              searchEnd, pm->ps->clientNum, pm->tracemask );
-
   return PM_IsWall( wall );
 }
 
@@ -594,25 +589,34 @@ Checks if the player is in contact with a wall.
 */
 static float PM_GetWallSpeedFactor( void )
 {
-  trace_t  wall;      //- Wall we are moving along.
-  qboolean foundWall; //- Whether we have found a wall.
-  vec3_t   lookDir;   //- Look direction (horizontal only).
-  vec3_t   normal;    //- Wall normal (horizontal only).
-  float    alignment; //- How much the look direction aligns with the wall
-                      //  direction (from 0 to 1).
+  float*   groundNormal; //- Ground normal.
+  vec3_t   searchDir;    //- Direction for searching for a wall.
+  trace_t  wall;         //- Wall we are moving along.
+  qboolean foundWall;    //- Whether we have found a wall.
+  vec3_t   lookDir;      //- Look direction (horizontal only).
+  vec3_t   normal;       //- Wall normal (horizontal only).
+  float    alignment;    //- How much the look direction aligns with the wall
+                         //  direction (from 0 to 1).
 
   // Find the wall we are moving along.
-  foundWall = PM_ScanForWall( &wall, 0.5f, 0.5f );
-  if( !foundWall ) foundWall = PM_ScanForWall( &wall, -0.5f, 0.5f );
-  if( !foundWall ) foundWall = PM_ScanForWall( &wall, 0.5f, -0.5f );
-  if( !foundWall ) foundWall = PM_ScanForWall( &wall, -0.5f, -0.5f );
-  if( !foundWall ) return 0.0f;
+  if( !PM_VectorCloseToZero( pml.groundTrace.plane.normal ) )
+    groundNormal = pml.groundTrace.plane.normal;
+  else
+    groundNormal = upNormal;
 
-  // Get the horizontal components of the look direction and the wall normal.
-  VectorCopy( pml.forward, lookDir );
-  VectorCopy( wall.plane.normal, normal );
-  lookDir[ 2 ] = 0.0f;
-  normal[ 2 ] = 0.0f;
+  ProjectPointOnPlane( searchDir, pml.right, groundNormal );
+  VectorNormalize( searchDir );
+
+  if( !PM_ScanForWall( &wall, searchDir ) )
+  {
+    VectorNegate( searchDir, searchDir );
+    if( !PM_ScanForWall( &wall, searchDir ) )
+      return 0.0f;
+  }
+
+  // Project the look direction and the wall normal onto the ground.
+  ProjectPointOnPlane( lookDir, pml.forward, groundNormal );
+  ProjectPointOnPlane( normal, wall.plane.normal, groundNormal );
   VectorNormalize( lookDir );
   VectorNormalize( normal );
 
