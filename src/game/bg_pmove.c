@@ -439,19 +439,6 @@ static qboolean PM_IsWall( trace_t *trace )
 
 /*
 ==============
-PM_VectorCloseToZero
-
-Checks if a vector is close to zero.
-==============
-*/
-static qboolean PM_VectorCloseToZero( vec3_t vec )
-{
-  return fabs( vec[ 0 ] + vec[ 1 ] + vec[ 2 ] ) < 0.002f;
-}
-
-
-/*
-==============
 PM_WallCoast
 
 Modifies `wishDir` as to allow coasting along walls at full speed even when the
@@ -459,10 +446,11 @@ desired movement direction is not perfectly parallel with the wall. The
 `groundNormal` parameter is only used for ambiguity resolution.
 ==============
 */
-static void PM_WallCoast( vec3_t wishDir, vec3_t groundNormal )
+static void PM_WallCoast( vec3_t wishDir )
 {
   static float SLOWDOWN_THRESHOLD = 0.95f;
 
+  float* groundNormal;     //- Ground normal.
   vec3_t groundLookDir;    //- Look direction projected onto the ground.
   vec3_t groundWishDir;    //- Desired direction projected onto the ground.
   vec3_t groundWallNormal; //- Wall normal projected onto the ground.
@@ -474,8 +462,18 @@ static void PM_WallCoast( vec3_t wishDir, vec3_t groundNormal )
   float   ramFactor;       //- How much is the player is moving into the wall
                            //  (0 to 1).
 
+  // Get the ground normal.
+  if( pml.groundPlane )
+    groundNormal = pml.groundTrace.plane.normal;
+  else
+    groundNormal = upNormal;
+
+  // Project the desired direction onto the ground.
+  ProjectPointOnPlane( groundWishDir, wishDir, groundNormal );
+  VectorNormalize( groundWishDir );
+
   // Find a wall the player is running into.
-  VectorMA( pm->ps->origin, 0.25f, wishDir, searchEnd );
+  VectorMA( pm->ps->origin, 0.25f, groundWishDir, searchEnd );
   pm->trace( &wall, pm->ps->origin, pm->mins, pm->maxs,
              searchEnd, pm->ps->clientNum, pm->tracemask );
 
@@ -483,21 +481,21 @@ static void PM_WallCoast( vec3_t wishDir, vec3_t groundNormal )
   if ( !PM_IsWall( &wall ) )
     return;
 
-  // Project the look direction and the desired direction onto the ground.
+  // Project the look direction and the wall normal onto the ground.
+  ProjectPointOnPlane( groundWallNormal, wall.plane.normal, groundNormal );
   ProjectPointOnPlane( groundLookDir, pml.forward, groundNormal );
-  ProjectPointOnPlane( groundWishDir, wishDir, groundNormal );
   VectorNormalize( groundLookDir );
-  VectorNormalize( groundWishDir );
+  VectorNormalize( groundWallNormal );
 
   // Check how much the look direction aligns with the desired direction.
   alignment = DotProduct( groundLookDir, groundWishDir );
 
   // Project the desired direction onto the wall.
-  ProjectPointOnPlane( result, wishDir, wall.plane.normal );
+  ProjectPointOnPlane( result, wishDir, groundWallNormal );
 
   // If we are moving directly towards the wall, try to guess the intended
   // movement direction.
-  if( PM_VectorCloseToZero( result ) )
+  if( VectorLength( result ) < 0.025f )
   {
     // The look direction and the desired movement direction are orthogonal.
     // We have no information to work with, give up.
@@ -515,7 +513,7 @@ static void PM_WallCoast( vec3_t wishDir, vec3_t groundNormal )
     // lead the player directly into the wall (this happens when moving directly
     // forward or backward), give up.
     ProjectPointOnPlane( result, result, wall.plane.normal );
-    if( PM_VectorCloseToZero( result ) )
+    if( VectorLength( result ) < 0.025f )
       return;
   }
 
@@ -523,8 +521,6 @@ static void PM_WallCoast( vec3_t wishDir, vec3_t groundNormal )
   VectorNormalize( result );
 
   // Calculate how much the player is moving into the wall.
-  ProjectPointOnPlane( groundWallNormal, wall.plane.normal, groundNormal );
-  VectorNormalize( groundWallNormal );
   ramFactor = MAX( 0.0f, -DotProduct( groundWishDir, groundWallNormal ) );
 
   // Make sure that the transition from one direction to the opposite is not too
@@ -601,7 +597,7 @@ static void PM_ComputeWallSpeedFactor( void )
                          //  direction (from 0 to 1).
 
   // Find the wall we are moving along.
-  if( !PM_VectorCloseToZero( pml.groundTrace.plane.normal ) )
+  if( pml.groundPlane )
     groundNormal = pml.groundTrace.plane.normal;
   else
     groundNormal = upNormal;
@@ -1254,10 +1250,8 @@ static qboolean PM_CheckWaterJump( void )
   static float MAX_COAST_HEIGHT = 60.0f;
   static float MAX_COAST_DISTANCE = 100.0f;
 
-  static vec3_t wallTraceBBoxA = { -4, -4, -8 };
-  static vec3_t wallTraceBBoxB = {  4,  4,  4 };
-
   trace_t trace;
+  vec3_t  wallTraceMins;
   vec3_t  wallTraceEnd;
   vec3_t  landTraceStart;
   vec3_t  landTraceEnd;
@@ -1272,14 +1266,17 @@ static qboolean PM_CheckWaterJump( void )
   if( !( pm->waterlevel == 2 || pm->waterlevel == 1 ) )
     return qfalse;
 
+  // Project the look direction onto the horizontal plane.
   flatforward[ 0 ] = pml.forward[ 0 ];
   flatforward[ 1 ] = pml.forward[ 1 ];
   flatforward[ 2 ] = 0;
   VectorNormalize( flatforward );
 
   // Find the wall.
-  VectorMA( pm->ps->origin, 40.0f, flatforward, wallTraceEnd );
-  pm->trace( &trace, pm->ps->origin, wallTraceBBoxA, wallTraceBBoxB,
+  VectorCopy( pm->mins, wallTraceMins );
+  wallTraceMins[ 2 ] = MAX( -8.0f, pm->mins[ 2 ] );
+  VectorMA( pm->ps->origin, 20.0f, flatforward, wallTraceEnd );
+  pm->trace( &trace, pm->ps->origin, wallTraceMins, pm->maxs,
              wallTraceEnd, pm->ps->clientNum, pm->tracemask );
 
   // Check if we found the wall.
@@ -1304,10 +1301,7 @@ static qboolean PM_CheckWaterJump( void )
 
   // We couldn't go forward even a little bit.
   if( Distance( landTraceStart, trace.endpos ) < 0.25f )
-  {
-    Com_Printf("NO!");
     return qfalse;
-  }
 
   // Now check if there's some land below the position we ended up with.
   VectorCopy( trace.endpos, landTraceEnd );
@@ -1504,7 +1498,7 @@ static void PM_WaterMove( void )
   if( wishspeed > pm->ps->speed * pm_swimScale )
     wishspeed = pm->ps->speed * pm_swimScale;
 
-  PM_WallCoast( wishdir, upNormal );
+  PM_WallCoast( wishdir );
   PM_Accelerate( wishdir, wishspeed, pm_wateraccelerate );
 
   // make sure we can go up slopes easily under water
@@ -1555,7 +1549,7 @@ static void PM_JetPackMove( void )
   VectorCopy( wishvel, wishdir );
   wishspeed = VectorNormalize( wishdir );
 
-  PM_WallCoast( wishdir, upNormal );
+  PM_WallCoast( wishdir );
   PM_Accelerate( wishdir, wishspeed, pm_flyaccelerate );
 
   PM_StepSlideMove( qfalse, qfalse );
@@ -1608,7 +1602,7 @@ static void PM_FlyMove( void )
   VectorCopy( wishvel, wishdir );
   wishspeed = VectorNormalize( wishdir );
 
-  PM_WallCoast( wishdir, upNormal );
+  PM_WallCoast( wishdir );
   PM_Accelerate( wishdir, wishspeed, pm_flyaccelerate );
 
   PM_StepSlideMove( qfalse, qfalse );
@@ -1670,7 +1664,7 @@ static void PM_AirMove( void )
   if( PM_IsMarauder( ) )
     PM_RedirectMomentum( wishdir, wishspeed, 1.5f * controlFactor );
 
-  PM_WallCoast( wishdir, upNormal );
+  PM_WallCoast( wishdir );
   PM_AccelerateHorizontal( wishdir, wishspeed,
     BG_Class( pm->ps->stats[ STAT_CLASS ] )->airAcceleration * controlFactor );
 
@@ -1896,7 +1890,7 @@ static void PM_WalkMove( void )
   else
     accelerate = BG_Class( pm->ps->stats[ STAT_CLASS ] )->acceleration;
 
-  PM_WallCoast( wishdir, pml.groundTrace.plane.normal );
+  PM_WallCoast( wishdir );
   PM_Accelerate( wishdir, wishspeed, accelerate );
 
   //Com_Printf("velocity = %1.1f %1.1f %1.1f\n", pm->ps->velocity[0], pm->ps->velocity[1], pm->ps->velocity[2]);
