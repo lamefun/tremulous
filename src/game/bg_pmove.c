@@ -1251,6 +1251,9 @@ PM_CheckWaterJump
 */
 static qboolean PM_CheckWaterJump( void )
 {
+  static float MAX_COAST_HEIGHT = 60.0f;
+  static float MAX_COAST_DISTANCE = 100.0f;
+
   static vec3_t wallTraceBBoxA = { -4, -4, -8 };
   static vec3_t wallTraceBBoxB = {  4,  4,  4 };
 
@@ -1260,12 +1263,13 @@ static qboolean PM_CheckWaterJump( void )
   vec3_t  landTraceEnd;
   vec3_t  flatforward;
   float   jumpMagnitude;
+  float   swimLevel;
 
   if( pm->ps->pm_time )
     return qfalse;
 
-  // Check for water jump.
-  if( pm->waterlevel != 2 )
+  // Check if we are at the surface.
+  if( !( pm->waterlevel == 2 || pm->waterlevel == 1 ) )
     return qfalse;
 
   flatforward[ 0 ] = pml.forward[ 0 ];
@@ -1282,15 +1286,37 @@ static qboolean PM_CheckWaterJump( void )
   if( trace.fraction >= 1.0f )
     return qfalse;
 
-  // Check if there's a wall above the water.
-  VectorCopy( pm->ps->origin, landTraceStart );
-  landTraceStart[ 2 ] += 60.0f;
-  VectorMA( landTraceStart, 100.0f, flatforward, landTraceEnd ); 
-  pm->trace( &trace, landTraceStart, NULL, NULL,
+  // Calcualte how much of the player is below the water when swimming.
+  swimLevel = -pm->mins[ 2 ];
+
+  // Start checking if there's land to jump out to. First check how far we can
+  // go up, within a limit.
+  VectorCopy( pm->ps->origin, landTraceEnd );
+  landTraceEnd[ 2 ] += MAX_COAST_HEIGHT + swimLevel;
+  pm->trace( &trace, pm->ps->origin, pm->mins, pm->maxs,
              landTraceEnd, pm->ps->clientNum, pm->tracemask );
 
-  // Don't jump if we would be blocked by a wall.
-  if( trace.fraction < 1.0f )
+  // Check how far we can go forward.
+  VectorCopy( trace.endpos, landTraceStart );
+  VectorMA( landTraceStart, MAX_COAST_DISTANCE, flatforward, landTraceEnd ); 
+  pm->trace( &trace, landTraceStart, pm->mins, pm->maxs,
+             landTraceEnd, pm->ps->clientNum, pm->tracemask );
+
+  // We couldn't go forward even a little bit.
+  if( Distance( landTraceStart, trace.endpos ) < 0.25f )
+  {
+    Com_Printf("NO!");
+    return qfalse;
+  }
+
+  // Now check if there's some land below the position we ended up with.
+  VectorCopy( trace.endpos, landTraceEnd );
+  landTraceEnd[ 2 ] -= MAX_COAST_HEIGHT;
+  pm->trace( &trace, trace.endpos, pm->mins, pm->maxs,
+             landTraceEnd, pm->ps->clientNum, pm->tracemask );
+
+  // Return if there's no land to jump out to.
+  if( trace.fraction >= 1.0f )
     return qfalse;
 
   // Jump out of water.
@@ -1790,6 +1816,12 @@ static void PM_WalkMove( void )
   {
     // begin swimming
     PM_WaterMove( );
+    return;
+  }
+
+  if( PM_CheckWaterJump() )
+  {
+    PM_WaterJumpMove( );
     return;
   }
 
