@@ -500,7 +500,7 @@ static void PM_WallCoast( vec3_t wishDir, vec3_t groundNormal )
   if( PM_VectorCloseToZero( result ) )
   {
     // The look direction and the desired movement direction are orthogonal.
-    // We have no infomration to work with, give up.
+    // We have no information to work with, give up.
     if( fabs( alignment ) < 0.025f )
       return;
 
@@ -582,12 +582,14 @@ static qboolean PM_ScanForWall( trace_t *wall, vec3_t searchDir )
 
 /*
 ==============
-PM_GetWallSpeedFactor
+PM_ComputeWallSpeedFactor
 
-Checks if the player is in contact with a wall.
+Checks if the player is in contact with a wall and computes how much of the
+potential speed increase to actually add to the maximum speed, putting the
+result in pml.wallSpeedFactor.
 ==============
 */
-static float PM_GetWallSpeedFactor( void )
+static void PM_ComputeWallSpeedFactor( void )
 {
   float*   groundNormal; //- Ground normal.
   vec3_t   searchDir;    //- Direction for searching for a wall.
@@ -611,7 +613,7 @@ static float PM_GetWallSpeedFactor( void )
   {
     VectorNegate( searchDir, searchDir );
     if( !PM_ScanForWall( &wall, searchDir ) )
-      return 0.0f;
+      return;
   }
 
   // Project the look direction and the wall normal onto the ground.
@@ -624,7 +626,7 @@ static float PM_GetWallSpeedFactor( void )
   alignment = 1.0f - fabs( DotProduct( lookDir, normal ) );
 
   // Use sqrt to make this easier to use. MAX is used just in case.
-  return sqrt( MAX( 0.0f, alignment ) );
+  pml.wallSpeedFactor = sqrt( MAX( 0.0f, alignment ) );
 }
 
 /*
@@ -645,9 +647,6 @@ static float PM_CmdScale( usercmd_t *cmd, qboolean zFlight )
   float       total;
   float       scale;
   float       modifier = 1.0f;
-  float       wallFactor;
-
-  wallFactor = PM_GetWallSpeedFactor( );
 
   if( pm->ps->stats[ STAT_TEAM ] == TEAM_HUMANS && pm->ps->pm_type == PM_NORMAL )
   {
@@ -691,10 +690,10 @@ static float PM_CmdScale( usercmd_t *cmd, qboolean zFlight )
     else if( cmd->rightmove != 0 )
     {
       //can't move that fast sideways
-      modifier *= MIX( HUMAN_SIDE_MODIFIER, 1.0f, wallFactor );
+      modifier *= MIX( HUMAN_SIDE_MODIFIER, 1.0f, pml.wallSpeedFactor );
     }
 
-    modifier *= MIX( 1.0f, HUMAN_WALL_MODIFIER, wallFactor);
+    modifier *= MIX( 1.0f, HUMAN_WALL_MODIFIER, pml.wallSpeedFactor );
 
     if( !zFlight )
     {
@@ -726,7 +725,7 @@ static float PM_CmdScale( usercmd_t *cmd, qboolean zFlight )
   }
   else if( pm->ps->stats[ STAT_TEAM ] == TEAM_ALIENS )
   {
-    modifier *= MIX( 1.0f, ALIEN_WALL_MODIFIER, wallFactor );
+    modifier *= MIX( 1.0f, ALIEN_WALL_MODIFIER, pml.wallSpeedFactor );
   }
 
   if( pm->ps->weapon == WP_ALEVEL4 && pm->ps->pm_flags & PMF_CHARGE )
@@ -2686,6 +2685,7 @@ static void PM_GroundTrace( void )
         PM_StepEvent( pm->ps->origin, trace.endpos, refNormal );
         VectorCopy( trace.endpos, pm->ps->origin );
         steppedDown = qtrue;
+        pml.groundTrace = trace;
       }
     }
 
@@ -3079,8 +3079,7 @@ static void PM_Footsteps( void )
   if( pm->ps->stats[ STAT_STATE ] & SS_SPEEDBOOST )
     bobmove *= HUMAN_SPRINT_MODIFIER;
 
-  wallFactor = PM_GetWallSpeedFactor( );
-  bobmove *= MIX( 1.0f, 1.15f, wallFactor );
+  bobmove *= MIX( 1.0f, 1.15f, pml.wallSpeedFactor );
 
   // check for footstep / splash sounds
   old = pm->ps->bobCycle;
@@ -4153,6 +4152,8 @@ void PmoveSingle( pmove_t *pmove )
 
   if( pm->ps->pm_type == PM_DEAD || pm->ps->pm_type == PM_GRABBED )
     PM_DeadMove( );
+
+  PM_ComputeWallSpeedFactor();
 
   PM_DropTimers( );
   PM_CheckDodge( );
