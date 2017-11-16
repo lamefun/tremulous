@@ -885,7 +885,30 @@ float     G_RewardAttackers( gentity_t *self );
 void      AddScore( gentity_t *ent, int score );
 void      G_LogDestruction( gentity_t *self, gentity_t *actor, int mod );
 
-void      G_InitDamageLocations( void );
+typedef struct {
+  gentity_t *target;
+  gentity_t *inflictor;
+  gentity_t *attacker;
+  qboolean haveSourceOrigin;
+  vec3_t sourceOrigin;
+  qboolean haveKnockbackDir;
+  vec3_t knockbackDir;
+  qboolean havePoint;
+  vec3_t point;
+  int damage;
+  int dflags;
+  int mod;
+} damageInfo_t;
+
+#define DAMAGE_INFO_INIT \
+  { NULL, NULL, NULL, \
+    qfalse, { 0.0f, 0.0f, 0.0f }, \
+    qfalse, { 0.0f, 0.0f, 0.0f }, \
+    qfalse, { 0.0f, 0.0f, 0.0f }, \
+    0, 0, 0 }
+
+void G_Damage2( damageInfo_t *dmg );
+void G_SelectiveDamage2( damageInfo_t *dmg, int immuneTeam );
 
 // damage flags
 #define DAMAGE_RADIUS         0x00000001  // damage was indirect

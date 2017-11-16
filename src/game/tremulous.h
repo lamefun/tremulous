@@ -25,6 +25,92 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #define _TREMULOUS_H_
 
 /*
+ * Bunnyhopping.
+ */
+
+#define HUMAN_HOPPING_SPEED 2.0f
+#define HUMAN_JUMP_KICK_MIN 0.3f
+#define HUMAN_JUMP_KICK_MAX 0.4f
+
+#define DRETCH_BASILISK_HOPPING_SPEED 1.75f
+#define DRETCH_BASILISK_JUMP_KICK_MIN 0.3f
+#define DRETCH_BASILISK_JUMP_KICK_MAX 0.5f
+
+#define MARAUDER_HOPPING_SPEED 3.0f
+#define MARAUDER_JUMP_KICK_MIN 0.5f
+#define MARAUDER_JUMP_KICK_MAX 0.2f
+
+#define OTHER_ALIEN_HOPPING_SPEED 1.75f
+#define OTHER_ALIEN_JUMP_KICK_MIN 0.2f
+#define OTHER_ALIEN_JUMP_KICK_MAX 0.4f
+
+
+/*
+ * Marauder air control.
+ */
+
+#define MARAUDER_MOMENTUM_REDIRECTION 0.75f
+
+#define MARAUDER_MAX_DRAG 1500.0f
+#define MARAUDER_DRAG_MIN_SPEED 1.35f
+#define MARAUDER_DRAG_MAX_SPEED 2.0f
+
+#define MARAUDER_MAX_BRAKING_BOOST 1.5f
+#define MARAUDER_BBOOST_FALLOFF_START_SPEED 1.0f
+#define MARAUDER_BBOOST_FALLOFF_END_SPEED 1.75f
+
+
+/*
+ * Marauder wall jump.
+ */
+
+#define MARAUDER_WALLJUMP_UP 1.25f
+#define MARAUDER_WALLJUMP_AWAY 0.75f
+
+
+/*
+ * Wall coasting.
+ */
+
+// Minimum fraction of the speed to keep when not going forward.
+#define WALLCOSAT_MIN_SPEED_FRACTION 0.4f
+
+
+/*
+ * Wall speed boost.
+ */
+
+#define HUMAN_WALL_SPEED_MODIFIER 1.15f
+#define ALIEN_WALL_SPEED_MODIFIER 1.2f
+
+
+/*
+ * Locational damage. HUMAN_PRECISION_FUNCTION and ALIEN_PRECISION_FUNCTION
+ * can be changed to make humans and aliens respectively easier or harder to hit
+ * precisely.
+ */
+
+#define HUMAN_HELMET_MODIFIER 0.8f
+#define HUMAN_HELMET_ELEVATION_MODIFIER 0.5f
+#define HUMAN_LIGHTARMOUR_MODIFIER 0.4f
+#define HUMAN_BATTLESUIT_MODIFIER 0.2f
+
+// How alien attacks work against humans.
+#define HUMAN_PRECISION_FUNCTION(x) sqrt( x )
+#define HUMAN_PRECISION_MIN_MODIFIER 0.2f
+#define HUMAN_PRECISION_MAX_MODIFIER 2.0f
+#define HUMAN_FLANKING_MODIFIER 0.5f
+#define DRETCH_MARAUDER_ELEVATION_BONUS 1.0f
+
+// How human attacks work against aliens.
+#define ALIEN_PRECISION_FUNCTION(x) sqrt( x )
+#define ALIEN_PRECISION_MIN_MODIFIER 0.5f
+#define ALIEN_PRECISION_MAX_MODIFIER 1.5f
+#define ALIEN_FLANKING_MODIFIER -0.3f
+#define ALIEN_ELEVATION_MODIFIER -0.3f
+
+
+/*
  * ALIEN weapons
  *
  * _REPEAT  - time in msec until the weapon can be used again
@@ -49,10 +135,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #define ABUILDER_BLOB_SPEED_MOD     0.5f
 #define ABUILDER_BLOB_TIME          2000
 
-#define LEVEL0_BITE_DMG             ADM(36)
-#define LEVEL0_BITE_RANGE           64.0f
+#define LEVEL0_BITE_DMG             ADM(20)
+#define LEVEL0_BITE_RANGE           32.0f
 #define LEVEL0_BITE_WIDTH           6.0f
-#define LEVEL0_BITE_REPEAT          500
+#define LEVEL0_BITE_REPEAT          200
 #define LEVEL0_BITE_K_SCALE         1.0f
 
 #define LEVEL1_CLAW_DMG             ADM(32)

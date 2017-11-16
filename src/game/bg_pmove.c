@@ -761,8 +761,8 @@ static void PM_WallCoast( vec3_t wishDir, qboolean grounded )
     // Always keep some speed unless going directly forward.
     if ( alignment <= 0.95f )
     {
-      static float MIN_FRACTION = 0.4f;
-      fraction = MIN_FRACTION + ( fraction * ( 1.0f - MIN_FRACTION ) );
+      static float MIN_FRACTION = WALLCOSAT_MIN_SPEED_FRACTION;
+      fraction = MIN_FRACTION + fraction * ( 1.0f - MIN_FRACTION );
     }
 
     // Modify the resulting direction.
@@ -853,9 +853,6 @@ without getting a sqrt(2) distortion in speed.
 */
 static float PM_CmdScale( usercmd_t *cmd, qboolean zFlight )
 {
-  static float HUMAN_WALL_MODIFIER = 1.15f;
-  static float ALIEN_WALL_MODIFIER = 1.2f;
-
   int         max;
   float       total;
   float       scale;
@@ -906,7 +903,7 @@ static float PM_CmdScale( usercmd_t *cmd, qboolean zFlight )
       modifier *= MIX( HUMAN_SIDE_MODIFIER, 1.0f, pml.wallSpeedFactor );
     }
 
-    modifier *= MIX( 1.0f, HUMAN_WALL_MODIFIER, pml.wallSpeedFactor );
+    modifier *= MIX( 1.0f, HUMAN_WALL_SPEED_MODIFIER, pml.wallSpeedFactor );
 
     if( !zFlight )
     {
@@ -938,7 +935,7 @@ static float PM_CmdScale( usercmd_t *cmd, qboolean zFlight )
   }
   else if( pm->ps->stats[ STAT_TEAM ] == TEAM_ALIENS )
   {
-    modifier *= MIX( 1.0f, ALIEN_WALL_MODIFIER, pml.wallSpeedFactor );
+    modifier *= MIX( 1.0f, ALIEN_WALL_SPEED_MODIFIER, pml.wallSpeedFactor );
   }
 
   if( pm->ps->weapon == WP_ALEVEL4 && pm->ps->pm_flags & PMF_CHARGE )
@@ -1234,8 +1231,8 @@ static qboolean PM_CheckWallJump( vec3_t wishDir, float wishSpeed )
   jumpMagnitude = BG_Class( pm->ps->stats[ STAT_CLASS ] )->jumpMagnitude;
   upFactor = MIN( 1.0f, MAX( upLook, intoLook + 0.15f ) );
   awayFactor = MIN( 1.0f - upLook * upLook, intoLook );
-  upSpeed = upFactor * 1.25f * jumpMagnitude;
-  awaySpeed = intoLook * 0.75f * jumpMagnitude;
+  upSpeed = upFactor * jumpMagnitude * MARAUDER_WALLJUMP_UP;
+  awaySpeed = intoLook * jumpMagnitude * MARAUDER_WALLJUMP_AWAY;
 
   // Store awayFactor for use in PM_AirMove for control reduction.
   pm->ps->stats[ STAT_MISC ] = awayFactor * 100.0f;
@@ -1438,23 +1435,29 @@ static qboolean PM_CheckJump( void )
   PM_GetDesiredVelocity( wishDir, normal );
   maxHoppingSpeed = VectorNormalize( wishDir );
 
-  if( PM_IsDretchOrBasilisk( ) )
+  if( pm->ps->stats[ STAT_TEAM ] == TEAM_HUMANS )
   {
-    maxHoppingSpeed *= 1.75f;
-    maxKickFraction = 0.5f;
-    minKickFraction = 0.3f;
+    maxHoppingSpeed *= HUMAN_HOPPING_SPEED;
+    minKickFraction = HUMAN_JUMP_KICK_MIN;
+    maxKickFraction = HUMAN_JUMP_KICK_MAX;
+  }
+  else if( PM_IsDretchOrBasilisk( ) )
+  {
+    maxHoppingSpeed *= DRETCH_BASILISK_HOPPING_SPEED;
+    minKickFraction = DRETCH_BASILISK_JUMP_KICK_MIN;
+    maxKickFraction = DRETCH_BASILISK_JUMP_KICK_MAX;
   }
   else if( PM_IsMarauder( ) )
   {
-    maxHoppingSpeed *= 3.0f;
-    maxKickFraction = 0.5f;
-    minKickFraction = 0.2f;
+    maxHoppingSpeed *= MARAUDER_HOPPING_SPEED;
+    minKickFraction = MARAUDER_JUMP_KICK_MIN;
+    maxKickFraction = MARAUDER_JUMP_KICK_MAX;
   }
   else
   {
-    maxHoppingSpeed *= 1.75f;
-    maxKickFraction = 0.4f;
-    minKickFraction = 0.2f;
+    maxHoppingSpeed *= OTHER_ALIEN_HOPPING_SPEED;
+    minKickFraction = OTHER_ALIEN_JUMP_KICK_MIN;
+    maxKickFraction = OTHER_ALIEN_JUMP_KICK_MAX;
   }
 
   if( maxHoppingSpeed >= 1.0f )
@@ -1922,9 +1925,15 @@ static void PM_AirMove( void )
   // all of their speed when turning.
   if( PM_IsMarauder( ) && wishspeed >= 0.1f )
   {
-    PM_RedirectMomentum( wishdir, wishspeed, 0.75f * controlFactor );
-    PM_RudderDrag( wishdir, wishspeed * 1.35f, wishspeed * 3.0f, 1500.0f );
-    PM_BoostBraking( wishdir, wishspeed, wishspeed * 1.75f, 1.5f, &accel );
+    PM_RedirectMomentum( wishdir, wishspeed,
+                         MARAUDER_MOMENTUM_REDIRECTION * controlFactor );
+
+    PM_RudderDrag( wishdir, wishspeed * MARAUDER_DRAG_MIN_SPEED,
+                   wishspeed * MARAUDER_DRAG_MAX_SPEED, MARAUDER_MAX_DRAG );
+
+    PM_BoostBraking( wishdir, wishspeed * MARAUDER_BBOOST_FALLOFF_START_SPEED,
+                     wishspeed * MARAUDER_BBOOST_FALLOFF_END_SPEED,
+                     MARAUDER_MAX_BRAKING_BOOST, &accel );
   }
 
   PM_AccelerateHorizontal( wishdir, wishspeed, accel * controlFactor );
