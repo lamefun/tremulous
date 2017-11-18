@@ -28,7 +28,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "qcommon/q_shared.h"
 #include "renderercommon/tr_types.h"
 
-#include "../../assets/ui/menudef.h"
+#include "../../data/core/ui/menudef.h"
 
 #define MAX_MENUNAME 32
 #define MAX_ITEMTEXT 64

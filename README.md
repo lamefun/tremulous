@@ -1,125 +1,68 @@
-![Wtfbbqhax/Tremulous/tremulous-banner.jpg](misc/tremulous-banner.jpg)
+![Tremulous Banner](misc/tremulous-banner.jpg)
 
-[![Travis branch](https://travis-ci.org/GrangerHub/tremulous.svg?branch=master)](https://travis-ci.org/GrangerHub/tremulous)
-[![Coverity Scan](https://img.shields.io/coverity/scan/9866.svg?maxAge=3600)](https://scan.coverity.com/projects/wtfbbqhax-tremulous)
+[Homepage](http://grangerhub.com) |
+[Download](https://github.com/GrangerHub/tremulous/releases)
 
-# How to Install from GrangerHub's Release Page
+Tremulous is a first-person multiplayer tower defense game, pitting
+technologically advanced humans against ferocious space aliens. The goal of
+each team is to eliminate the members of the opposing team as well as the
+structures which allow them to re-enter the arena.
 
-You can install the latest released binaries from GrangerHub's release page,
-following these steps:
+# Development on Linux
 
-* Download the most recent .zip file for your platform from https://github.com/GrangerHub/tremulous/releases
- - The 64 bit Windows release would be named release-mingw32-x86_64.zip
- - The 64 bit Linux release would be named release-linux-x86_64.zip
- - The 64 bit Mac OS X release would be named release-darwin-x86_64.zip
-* Unzip the release .zip anywhere
-* Run the tremulous.exe from the unzipped release directory.
- - When you run the tremulous.exe binary for the first time, it may go through a bootstrap (download needed assets, generate an RSA key) process which may take a few minutes.
-* You can simply continue to run the new client from wherever the unzipped release folder is, or you could optionally replace your old Tremulous binaries with the binaries in the unzipped release directory, but make sure that you copy all of the contents of the unzipped release directory to where ever you move the released binaries to.  **_Backup your existing Tremulous if you intend on replacing the binaries._**
+### Building the game
 
-# Building from Source
+First, install [Git](https://git-scm.org) and the
+[Meson](http://mesonbuild.com/) build system.
 
-## Dependencies
+Clone the Tremulous repository and run `git submodule update` to download the
+assets:
 
-If you want to build against system libraries, the following packages are necessary:
+~~~{.sh}
+$ git clone https://github.com/GrangerHub/tremulous
+$ cd tremulous
+$ git submodule update
+~~~
 
-### Linux:
+Then use Meson to set up the build directory. The following command will tell
+the build system to create a portable Tremulous installation in the `install`
+subdirectory:
 
-* GCC/G++ (version 6+ is recommend)
-* CMake (Optional)
-* CURL (for downloading assets)
-* rsync (for asset management)
-* Zip (the tool not the library)
-* Libgl1-mesa
-* LibSDL2
-* LibCURL4
-* LibOpenAL
-* Libfreetype6
-* Lua 5.2 
+~~~{.sh}
+$ meson -D prefix=$PWD/install -D portable=true build
+~~~
 
-On Ubuntu yakkety (specifically) you can install all the packages necessary with the following:
+If Meson tells you that some dependencies are missing, install them and
+run Meson again. When Meson completes successfully, switch to the build
+directory and install Tremulous:
 
-```
-apt install -y cmake libgl1-mesa-dev libsdl2-dev libcurl4-openssl-dev libopenal-dev libfreetype6-dev mingw-w64 g++-mingw-w64 g++-multilib git zip vim-nox curl rsync
+~~~{.sh}
+$ cd build
+$ ninja install
+~~~
 
-```
+When this is done, you can run the game:
 
-### Mingw32 (win32 cross compile)
+~~~{.sh}
+$ ../install/tremulous
+~~~
 
-Mingw32 requires `USE_INTERNAL_LIBS=1`
+You can pass console commands via the command line as well:
 
-* Mingw-w64
-* g++-mingw-w64
+~~~{.sh}
+$ ../install/tremulous +connect 162.248.95.116:7341
+~~~
 
-Currently there is no native Windows build setup, all builds are cross compiled on Linux.
+### Running a server
 
-### OSX
+If you simply want to start a test server to test the changes you've made
+together with other players, simply copy `install/server.sh.template` to
+`install/server.sh`, edit it as you want, open and forward the ports you chose,
+and do:
 
-TBD
+~~~{.sh}
+$ cd install
+$ sh server.sh
+~~~
 
-## How to Install from the Source Code
-
-For Linux and Mac OS X builds, follow these steps.
-
-```bash
-git clone https://github.com/GrangerHub/tremulous.git
-cd tremulous
-make
-# cd build/release-darwin-x86_64/
-# cd build/release-linux-x86_64/
-./tremulous
-```
-
-# How to build for Win64
-
-Windows binaries are built using a Docker container.
-Click [here](https://www.docker.com/) to learn more about Docker.
-
-```bash
-docker build -t wtfbbqhax/tremulous:v2 .
-docker run -t -i -v $(pwd):/usr/src wtfbbqhax/tremulous:v2 make USE_RESTCLIENT=1 USE_INTERNAL_LUA=1 PLATFORM=mingw32
-```
-
-# Where do I get the assets?
-
-The Tremulous client binary by default will attempt to retrieve the assets automatically (Known as the Pk3 bootstrap).
-However, sometimes this does not work as expected.
-
-If you need to download the assets yourself; they are available here:
-
-https://github.com/wtfbbqhax/tremulous-data
-
-Or you can checkout the entire repository:
-
-```bash
-git clone https://github.com/wtfbbqhax/tremulous-data.git
-```
-
-# About Lua
-
-This branch integrates Lua into the Tremulous runtime. This is a base branch for additional Lua api development to branch from.
-
-# About Transform
-
-This code allows customizing human player models with arbitray quake3 thirdparty md3-%.pk3's.
-
-This adds the admin command `/transform [name|slot#] [modelname] <skin>` which is an admin abusive command to
-force player model chanes.
-
-This also includes voice menus branch
-
-
-# Console Cvars
-
-* New Cvar `scr_useShader` enable/disable use of the console shader vs color controls below. 
- - (0, 1) default 1 (enabled)
-* New Cvar `scr_height` control console height.
- - 100: (e.g., 100%) Default
-* New Cvar `scr_colorRed` console background red amount.
- - (0.0f - 1.0f) default 0.0f
-* New Cvar `scr_colorGreen` console background green amount.
- - (0.0f - 1.0f) default 0.0f
-* New Cvar `scr_colorBlue` console background blue amount.
- - (0.0f - 1.0f) default 0.0f
-* New Cvar `scr_colorAlpha` console transparency.
- - (0.0f - 1.0f) default 0.8f
+For more in-depth information, see [RunningServers](docs/RunningServers.md).

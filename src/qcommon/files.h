@@ -34,7 +34,7 @@ extern "C" {
 
 #define MAX_FILE_HANDLES 64
 
-#define BASEGAME        "gpp"
+#define BASEGAME        "base"
 
 #ifdef DEDICATED
 #define Q3CONFIG_CFG "autogen_server.cfg"

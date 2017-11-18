@@ -2830,6 +2830,9 @@ void FS_AddGameDirectory(const char *path, const char *dir)
     Q_strncpyz(prefixBuf, Cvar_VariableString("fs_pk3PrefixPairs"), sizeof(prefixBuf));
     int numPairs = 0;
 
+    if( strlen( prefixBuf ) == 0 )
+      Q_strncpyz( prefixBuf, "gpp&v11", sizeof( prefixBuf ) );
+
     char *p = prefixBuf;
     if (!p[0]) p = nullptr;
 
@@ -2974,6 +2977,29 @@ void FS_AddGameDirectory(const char *path, const char *dir)
 
             pakdirsi++;
         }
+    }
+
+    // Move primary-only packages to the beginning of the search list.
+    {
+      searchpath_t *previous = NULL;
+      searchpath_t *current = fs_searchpaths;
+      
+      while( current )
+      {
+        if( current->pack && current->pack->onlyPrimary )
+        {
+          searchpath_t *next = current->next;
+          current->next = fs_searchpaths;
+          fs_searchpaths = current;
+          if( previous ) previous->next = next;
+          current = next;
+        }
+        else
+        {
+          previous = current;
+          current = current->next;
+        }
+      }
     }
 
     // done
@@ -3265,8 +3291,12 @@ static void FS_Startup(const char *gameName)
     Com_Printf("----- FS_Startup -----\n");
     fs_packFiles = 0;
 
+    #ifndef FS_DEFAULT_BASEPATH
+      #define FS_DEFAULT_BASEPATH Sys_DefaultInstallPath()
+    #endif
+
     fs_debug = Cvar_Get("fs_debug", "0", 0);
-    fs_basepath = Cvar_Get("fs_basepath", Sys_DefaultInstallPath(), CVAR_INIT | CVAR_PROTECTED);
+    fs_basepath = Cvar_Get("fs_basepath", FS_DEFAULT_BASEPATH, CVAR_INIT | CVAR_PROTECTED);
     fs_basegame = Cvar_Get("fs_basegame", BASEGAME, CVAR_INIT);
 
     const char *homePath = Sys_DefaultHomePath();
@@ -3276,7 +3306,7 @@ static void FS_Startup(const char *gameName)
     }
 
     fs_homepath = Cvar_Get("fs_homepath", homePath, CVAR_INIT | CVAR_PROTECTED);
-    fs_gamedirvar = Cvar_Get("fs_game", BASEGAME, CVAR_INIT | CVAR_SYSTEMINFO);
+    fs_gamedirvar = Cvar_Get("fs_game", GAMEMOD, CVAR_INIT | CVAR_SYSTEMINFO);
 
 #ifdef DEDICATED
     // add search path elements in reverse priority order

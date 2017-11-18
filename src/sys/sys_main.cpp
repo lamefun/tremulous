@@ -493,7 +493,11 @@ void *Sys_LoadDll(const char *name, bool useSystemLib)
         const char *topDir;
         char libPath[MAX_OSPATH];
 
-        topDir = Sys_BinaryPath();
+        #ifdef SYS_DYNLIB_DIR
+          topDir = SYS_DYNLIB_DIR;
+        #else
+          topDir = Sys_BinaryPath();
+        #endif
 
         if(!*topDir)
             topDir = ".";
@@ -795,4 +799,3 @@ int main( int argc, char **argv )
 
     return 0;
 }
-
