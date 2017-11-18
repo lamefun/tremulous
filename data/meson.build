@@ -1,19 +1,12 @@
 # Install core assets.
 subdir( 'core' )
 
-# Install other essential packages.
-install_data(
-  install_dir : game_assets_dir,
-  sources : [
-    'assets/data-1.1.0.pk3',
-    'assets/data-gpp1.pk3',
-  ]
-)
-
-# Install built-in maps.
+# Install data packages and maps.
 install_data(
   install_dir : base_assets_dir,
   sources : [
+    'assets/data-1.1.0.pk3',
+    'assets/data-gpp1.pk3',
     'assets/map-arachnid2-1.1.0.pk3',
     'assets/map-atcs-1.1.0.pk3',
     'assets/map-karith-1.1.0.pk3',
