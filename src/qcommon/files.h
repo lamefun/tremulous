@@ -25,7 +25,6 @@ extern "C" {
 
 #include "q_platform.h"
 #include "q_shared.h"
-//#include "unzip.h"
 
 // referenced flags
 // these are in loop specific order so don't change the order
@@ -35,7 +34,7 @@ extern "C" {
 
 #define MAX_FILE_HANDLES 64
 
-#define BASEGAME        "gpp"
+#define BASEGAME        "base"
 
 #ifdef DEDICATED
 #define Q3CONFIG_CFG "autogen_server.cfg"

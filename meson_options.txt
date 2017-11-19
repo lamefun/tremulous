@@ -1,0 +1,24 @@
+option(
+  'build_client', type : 'boolean', value : true,
+  description : 'Build the Tremulous client'
+)
+
+option(
+  'build_server', type : 'boolean', value : true,
+  description : 'Build the Tremulous server'
+)
+
+option(
+  'build_game', type : 'boolean', value : true,
+  description : 'Build the game logic'
+)
+
+option(
+  'install_qvm_tools', type : 'boolean', value : false,
+  description : 'Install QVM compilation tools'
+)
+
+option(
+  'portable', type : 'boolean', value : false,
+  description : 'Create a portable installation'
+)
