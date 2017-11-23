@@ -29,6 +29,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include <unistd.h>
 #ifdef WIN32
 #include <windows.h>
+#include "SDL.h"
 #endif
 
 #include <cctype>
@@ -490,13 +491,18 @@ void *Sys_LoadDll(const char *name, bool useSystemLib)
 
     if(!useSystemLib || !(dllhandle = Sys_LoadLibrary(name)))
     {
-        const char *topDir;
+        char topDir[MAX_OSPATH] = "";
         char libPath[MAX_OSPATH];
 
-        topDir = Sys_BinaryPath();
+        #ifdef SYS_SHARED_MODULE_DIR
+          Q_strncpyz(topDir, SYS_SHARED_MODULE_DIR, sizeof(topDir));
+        #else
+          Q_strncpyz(topDir, Sys_BinaryPath(), sizeof(topDir));
+          Q_strcat(topDir, sizeof(topDir), "/libs");
+        #endif
 
         if(!*topDir)
-            topDir = ".";
+            Q_strncpyz(topDir, ".", sizeof(topDir));
 
         Com_Printf("Trying to load \"%s\" from \"%s\"...\n", name, topDir);
 
@@ -784,9 +790,9 @@ int main( int argc, char **argv )
     for ( ;; )
     {
         try
-        { 
+        {
             Com_Frame( );
-        } 
+        }
         catch (sol::error& e)
         {
             Com_Printf(S_COLOR_YELLOW "%s\n", e.what());
@@ -795,4 +801,3 @@ int main( int argc, char **argv )
 
     return 0;
 }
-

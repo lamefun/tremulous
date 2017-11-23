@@ -2830,6 +2830,9 @@ void FS_AddGameDirectory(const char *path, const char *dir)
     Q_strncpyz(prefixBuf, Cvar_VariableString("fs_pk3PrefixPairs"), sizeof(prefixBuf));
     int numPairs = 0;
 
+    if( strlen( prefixBuf ) == 0 )
+      Q_strncpyz( prefixBuf, "gpp&v11", sizeof( prefixBuf ) );
+
     char *p = prefixBuf;
     if (!p[0]) p = nullptr;
 
@@ -2974,6 +2977,29 @@ void FS_AddGameDirectory(const char *path, const char *dir)
 
             pakdirsi++;
         }
+    }
+
+    // Move primary-only packages to the beginning of the search list.
+    {
+      searchpath_t *previous = NULL;
+      searchpath_t *current = fs_searchpaths;
+      
+      while( current )
+      {
+        if( current->pack && current->pack->onlyPrimary )
+        {
+          searchpath_t *next = current->next;
+          current->next = fs_searchpaths;
+          fs_searchpaths = current;
+          if( previous ) previous->next = next;
+          current = next;
+        }
+        else
+        {
+          previous = current;
+          current = current->next;
+        }
+      }
     }
 
     // done
@@ -3265,8 +3291,12 @@ static void FS_Startup(const char *gameName)
     Com_Printf("----- FS_Startup -----\n");
     fs_packFiles = 0;
 
+    #ifndef FS_DEFAULT_BASEPATH
+      #define FS_DEFAULT_BASEPATH Sys_DefaultInstallPath()
+    #endif
+
     fs_debug = Cvar_Get("fs_debug", "0", 0);
-    fs_basepath = Cvar_Get("fs_basepath", Sys_DefaultInstallPath(), CVAR_INIT | CVAR_PROTECTED);
+    fs_basepath = Cvar_Get("fs_basepath", FS_DEFAULT_BASEPATH, CVAR_INIT | CVAR_PROTECTED);
     fs_basegame = Cvar_Get("fs_basegame", BASEGAME, CVAR_INIT);
 
     const char *homePath = Sys_DefaultHomePath();
@@ -3276,7 +3306,7 @@ static void FS_Startup(const char *gameName)
     }
 
     fs_homepath = Cvar_Get("fs_homepath", homePath, CVAR_INIT | CVAR_PROTECTED);
-    fs_gamedirvar = Cvar_Get("fs_game", BASEGAME, CVAR_INIT | CVAR_SYSTEMINFO);
+    fs_gamedirvar = Cvar_Get("fs_game", GAMEMOD, CVAR_INIT | CVAR_SYSTEMINFO);
 
 #ifdef DEDICATED
     // add search path elements in reverse priority order
@@ -3728,10 +3758,11 @@ void FS_InitFilesystem(void)
     Com_StartupVariable("fs_game");
     Com_StartupVariable("fs_pk3PrefixPairs");
 
-    if (!FS_FilenameCompare(Cvar_VariableString("fs_game"), BASEGAME)) Cvar_Set("fs_game", "");
+    if (!FS_FilenameCompare(Cvar_VariableString("fs_game"), GAMEMOD))
+      Cvar_Set("fs_game", GAMEMOD);
 
     // try to start up normally
-    FS_Startup(BASEGAME);
+    FS_Startup(GAMEMOD);
 
     // if we can't find default.cfg, assume that the paths are
     // busted and error out now, rather than getting an unreadable
@@ -3762,7 +3793,7 @@ void FS_Restart(int checksumFeed)
     FS_ClearPakReferences(0);
 
     // try to start up normally
-    FS_Startup(BASEGAME);
+    FS_Startup(GAMEMOD);
 
     // if we can't find default.cfg, assume that the paths are
     // busted and error out now, rather than getting an unreadable

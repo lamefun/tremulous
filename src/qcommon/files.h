@@ -34,7 +34,7 @@ extern "C" {
 
 #define MAX_FILE_HANDLES 64
 
-#define BASEGAME        "gpp"
+#define BASEGAME "base"
 
 #ifdef DEDICATED
 #define Q3CONFIG_CFG "autogen_server.cfg"
@@ -101,7 +101,6 @@ extern "C" {
  current game is the current mode
  base game is a variable to allow mods based on other mods
  (such as base + missionpack content combination in a mod for instance)
- BASEGAME is the hardcoded base game ("base")
 
  e.g. the qpath "sound/newstuff/test.wav" would be searched for in the following places:
 

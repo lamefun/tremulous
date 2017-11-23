@@ -1,13 +1,17 @@
-build
-Makefile.local
+# Generated files
+# ===============
+
+/build
+/install
+
+# Editor files
+# ============
 *.swp
 *tags
-misc/patches
-misc/last-merged-ioq3-revision.temp
 *~
 
-# OS X
-####################
+# macOS
+# =====
 .Spotlight-V100/
 .Trashes/
 ._*
@@ -16,8 +20,8 @@ misc/last-merged-ioq3-revision.temp
 .LSOverride
 Icon?
 
-# Xcode
-####################
+# XCode
+# =====
 *.mode1v3
 *.mode2v3
 *.pbxuser
@@ -37,7 +41,15 @@ profile
 !default.perspectivev3
 
 # Microsoft Visual Studio
-####################
+# =======================
 *.sdf
 *.opensdf
 *.suo
+
+# Qt Creator
+# ==========
+/CMakeLists.txt.user
+
+# GNOME Builder
+# =============
+/.buildconfig

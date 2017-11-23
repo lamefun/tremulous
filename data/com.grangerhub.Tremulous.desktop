@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Tremulous
+Comment=First-person multiplayer tower defense
+StartupNotify=true
+Terminal=false
+Exec=tremulous
+Icon=com.grangerhub.Tremulous
+Keywords=Game;ActionGame;

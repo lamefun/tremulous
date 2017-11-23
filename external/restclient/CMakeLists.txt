@@ -1,10 +1,12 @@
-add_library(
-    restclient
-    restclient/connection.h
-    restclient/helpers.h
-    restclient/restclient.h
-    restclient/version.h
-    connection.cpp
-    helpers.cpp
-    restclient.cpp
-    )
+add_library( restclient STATIC
+  connection.cpp
+  helpers.cpp
+  restclient.cpp
+)
+
+target_include_directories( restclient PUBLIC
+  "${CMAKE_CURRENT_SOURCE_DIR}"
+  "${TOP_SRCDIR}"
+)
+
+target_link_libraries( restclient ${CURL_LIB_TARGETS} )

@@ -1,136 +1,225 @@
+#===============================================================================
+# Project information
+#===============================================================================
 
-#   M""""""""M                                       dP                             #
-#   Mmmm  mmmM                                       88                             #
-#   MMMM  MMMM 88d888b. .d8888b. 88d8b.d8b. dP    dP 88 .d8888b. dP    dP .d8888b.  #
-#   MMMM  MMMM 88'  `88 88ooood8 88'`88'`88 88    88 88 88'  `88 88    88 Y8ooooo.  #
-#   MMMM  MMMM 88       88.  ... 88  88  88 88.  .88 88 88.  .88 88.  .88       88  #
-#   MMMM  MMMM dP       `88888P' dP  dP  dP `88888P' dP `88888P' `88888P' `88888P'  #
-#   MMMMMMMMMM                                                                      #
+cmake_minimum_required(VERSION 3.6)
+project(tremulous)
+
+# Tremulous version.
+set( PRODUCT_VERSION 1.3.0 )
+
+# Change these when working on a mod.
+set( GAME_MOD_NAME gpp )
+set( GAME_PK3_NAME tremulous )
 
 
-cmake_minimum_required(VERSION 3.5)
-project(Tremulous C CXX)
+#===============================================================================
+# Options
+#===============================================================================
 
-set(CMAKE_CXX_FLAGS -std=c++1y)
-set(CMAKE_C_FLAGS -std=gnu99)
+option( BUILD_CLIENT "Build Tremulous client" ON )
+option( BUILD_SERVER "Build Tremulous server" ON )
+option( BUILD_GAME "Build Tremulous game logic" ON )
+option( INTERNAL_DEPS "Use internal dependencies where possible" OFF )
+set( INSTALL_LAYOUT "Regular" CACHE STRING
+     "Installation layout (Regular|Portable|Windows)" )
 
-if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
-endif()
 
-# XXX This one doesn't work yet
-option(USE_RENDERER_DLOPEN "" ON)
+#===============================================================================
+# Basics
+#===============================================================================
 
-# These are not used at the moment 
-if (APPLE OR WIN32)
-  option(USE_INTERNAL_SDL2 "" ON)
-else ()
-  option(USE_INTERNAL_SDL2 "" OFF)
-endif()
+# Use C++14 and C99 standards.
+set( CMAKE_C_STANDARD 99 )
+set( CMAKE_CXX_STANDARD 14 )
 
-option(USE_INTERNAL_JPEG "" ON)
-option(USE_OPENAL "" ON)
-option(USE_OPENAL_DLOPEN "" ON)
-option(USE_VOIP "" OFF)
-option(USE_MUMBLE "" OFF)
-option(USE_CODEC_OPUS "" ON)
-option(USE_RESTCLIENT "" ON)
+# Enable position-independent code.
+set( CMAKE_POSITION_INDEPENDENT_CODE ON )
 
-include(${CMAKE_SOURCE_DIR}/cmake/build_dir)
-include(${CMAKE_SOURCE_DIR}/cmake/debug_cflags)
+# Use our custom CMake module directory.
+list( APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" )
 
-# builtins 
-add_subdirectory(external/SDL2)
-add_subdirectory(external/lua-5.3.3)
-add_subdirectory(external/nettle-3.3)
-add_subdirectory(external/zlib)
-add_subdirectory(external/jpeg-8c)
-add_subdirectory(external/restclient)
+# Include our utility module.
+include( TremulousUtils )
 
-# audio
-add_subdirectory(external/opus-1.1.4)
-add_subdirectory(external/opusfile-0.8)
-add_subdirectory(external/libogg-1.3.2)
-add_subdirectory(external/libvorbis-1.3.5)
+# Toplevel "src" directory.
+set( TOP_SRCDIR "${CMAKE_CURRENT_SOURCE_DIR}/src" )
 
-# engine
-add_subdirectory(src/script)
-add_subdirectory(src/renderercommon)
-add_subdirectory(src/renderergl1)
-add_subdirectory(src/renderergl2)
+# Tremulous include directories.
+set( TREMULOUS_INCLUDE_DIRECTORIES "${TOP_SRCDIR}" )
 
-#         .                    .
-#   ___   |   `   ___  , __   _/_
-# .'   `  |   | .'   ` |'  `.  |
-# |       |   | |----' |    |  |
-#  `._.' /\__ / `.___, /    |  \__/
-#
+# Tremulous compiler definitions.
+set( TREMULOUS_COMPILE_DEFINITIONS
+  USE_RESTCLIENT
+  USE_RENDERER_DLOPEN
+  USE_OPENAL
+  PRODUCT_VERSION="${PRODUCT_VERSION}"
+  GAMEMOD="${GAME_MOD_NAME}" )
 
-add_subdirectory(src/client)
+# Add WIN32 flag if building on Windows.
+if( WIN32 )
+  list( APPEND TREMULOUS_COMPILE_DEFINITIONS WIN32 )
+endif( )
 
-#   ____   ___  .___  _   __   ___  .___
-#  (     .'   ` /   \ |   /  .'   ` /   \
-#  `--.  |----' |   ' `  /   |----' |   '
-# \___.' `.___, /      \/    `.___, /
-#
- 
-add_subdirectory(src/server)
 
-#   ___
-# .'   \  .___    ___  , __     ___.   ___  .___
-# |       /   \  /   ` |'  `. .'   ` .'   ` /   \
-# |    _  |   ' |    | |    | |    | |----' |   '
-#  `.___| /     `.__/| /    |  `---| `.___, /
-#                              \___/
+#===============================================================================
+# Installation directories
+#===============================================================================
 
-if(BUILD_GRANGER)
-  add_subdirectory(src/granger/src)
-endif(BUILD_GRANGER)
+# Check if the installation layout is supported.
+if( NOT INSTALL_LAYOUT MATCHES Regular|Portable|Windows )
+  message( FATAL_ERROR
+    "The \"${INSTALL_LAYOUT}\" installation layout is not supported."
+    "Supported layouts are: Regular, Portable and Windows." )
+endif( )
 
-#  _______ ___ ___ _______                              __ __
-# |       |   |   |   |   | .----.-----.--------.-----.|__|  |.-----.----.
-# |   -  _|   |   |       | |  __|  _  |        |  _  ||  |  ||  -__|   _|
-# |_______|\_____/|__|_|__| |____|_____|__|__|__|   __||__|__||_____|__|
-#                                               |__|
-# TODO: DO NOT build unless building a QVM
+# Check whether to install the Freedesktop application metadata used by Linux
+# and most other UNIX-like systems (for example, the icons and the application
+# launcher).
+set( INSTALL_FREEDESKTOP_METADATA FALSE )
+if( INSTALL_LAYOUT STREQUAL Regular AND UNIX AND NOT APPLE )
+  set( INSTALL_FREEDESKTOP_METADATA TRUE )
+endif( )
 
-add_subdirectory(src/tools)
+# Use a flat installation layout for Windows and portable builds. Use the
+# standard GNU installation directories in all other cases.
+if( INSTALL_LAYOUT MATCHES Portable|Windows )
+  set( GAME_EXE_INSTALL_DIR "." )
+  set( TOOL_EXE_INSTALL_DIR "tools" )
+  set( SHARED_MODULE_INSTALL_DIR "libs" )
+  set( BASE_DATA_INSTALL_DIR "base" )
+  set( GAME_DATA_INSTALL_DIR "${GAME_MOD_NAME}" )
+  set( DOC_INSTALL_DIR "docs" )
+else( )
+  include( GNUInstallDirs )
+  set( TREMULOUS_DATA_DIR "${CMAKE_INSTALL_FULL_DATADIR}/tremulous" )
+  set( GAME_EXE_INSTALL_DIR "${CMAKE_INSTALL_FULL_BINDIR}" )
+  set( TOOL_EXE_INSTALL_DIR "${CMAKE_INSTALL_FULL_LIBEXECDIR}/tremulous" )
+  set( SHARED_MODULE_INSTALL_DIR "${CMAKE_INSTALL_FULL_LIBDIR}/tremoulous" )
+  set( BASE_DATA_INSTALL_DIR "${TREMULOUS_DATA_DIR}/base" )
+  set( GAME_DATA_INSTALL_DIR "${TREMULOUS_DATA_DIR}/${GAME_MOD_NAME}" )
+  set( DOC_INSTALL_DIR "${CMAKE_INSTALL_FULL_DATADIR}/doc/tremulous" )
+  list( APPEND TREMULOUS_COMPILE_DEFINITIONS
+    FS_DEFAULT_BASEPATH="${TREMULOUS_DATA_DIR}"
+    SYS_SHARED_MODULE_DIR="${SHARED_MODULE_INSTALL_DIR}" )
+endif( )
 
-#
-# ,   . `
-# |   | |
-# |   | |
-# `._/| /
-#
 
-add_subdirectory(src/ui)
+#===============================================================================
+# Dependencies
+#===============================================================================
 
-#   ___.   ___  , _ , _     ___
-# .'   `  /   ` |' `|' `. .'   `
-# |    | |    | |   |   | |----'
-#  `---| `.__/| /   '   / `.___,
-#  \___/
-#
+find_program( PYTHON3_COMMAND
+  NAMES python3 python
+  DOC "Python 3 command" )
 
-add_subdirectory(src/game)
+if( PYTHON3_COMMAND STREQUAL "PYTHON3_COMMAND-NOTFOUND" )
+  message( FATAL_ERROR "Python 3 not found" )
+endif( )
 
-#   ___    ___.   ___  , _ , _     ___
-# .'   ` .'   `  /   ` |' `|' `. .'   `
-# |      |    | |    | |   |   | |----'
-#  `._.'  `---| `.__/| /   '   / `.___,
-#         \___/
-#
+find_dependency( ZLIB REQUIRED
+  PKG_CONFIG zlib
+  INTERNAL_SOURCE_DIRS external/zlib
+  INTERNAL_LIB_TARGETS zlib )
 
-add_subdirectory(src/cgame)
+find_dependency( LUA REQUIRED
+  PKG_CONFIG lua
+  INTERNAL_SOURCE_DIRS external/lua-5.3.3
+  INTERNAL_LIB_TARGETS lua )
 
-#            _____)                          ____  ___)
-#          /                                (, /   /      /)
-#         /   ___   __  _  __   _    _  __    /---/      (/_     _  ______
-#        /     / ) / (_(_(_/ (_(_/__(/_/ (_) /   (__(_(_/_)  o  (__(_) // (_
-#       (____ /               .-/         (_/
-#                            (_/
+find_dependency( SOL REQUIRED
+  INTERNAL_SOURCE_DIRS external/sol
+  INTERNAL_LIB_TARGETS sol )
 
-# Author: Victor Roemer  wtfbbqhax, <victor@badsec.org>. 
-#  Date: Sat Nov  5 06:49:08 2016 
+find_dependency( CURL REQUIRED
+  PKG_CONFIG libcurl )
 
+find_dependency( RAPIDJSON REQUIRED
+  INTERNAL_SOURCE_DIRS external/rapidjson
+  INTERNAL_LIB_TARGETS rapidjson )
+
+find_dependency( RESTCLIENT REQUIRED
+  INTERNAL_SOURCE_DIRS external/restclient
+  INTERNAL_LIB_TARGETS restclient )
+
+find_dependency( NETTLE REQUIRED
+  INTERNAL_SOURCE_DIRS external/nettle-3.3
+  INTERNAL_LIB_TARGETS nettle )
+
+if( BUILD_CLIENT )
+  find_dependency( SEMVER REQUIRED
+    INTERNAL_SOURCE_DIRS external/semver
+    INTERNAL_LIB_TARGETS semver )
+
+  find_dependency( SDL2 REQUIRED
+    PKG_CONFIG sdl2 )
+
+  find_package( OpenGL REQUIRED )
+
+  find_dependency( OPENAL REQUIRED
+    PKG_CONFIG openal )
+
+  find_dependency( LIBJPEG REQUIRED
+    PKG_CONFIG libjpeg
+    INTERNAL_SOURCE_DIRS external/jpeg-8c
+    INTERNAL_LIB_TARGETS jpeg-8c )
+
+  find_dependency( VORBISFILE REQUIRED
+    PKG_CONFIG vorbisfile
+    INTERNAL_SOURCE_DIRS external/libogg-1.3.2 external/libvorbis-1.3.5
+    INTERNAL_LIB_TARGETS vorbis )
+endif( )
+
+
+#===============================================================================
+# Collect the source lists
+#===============================================================================
+
+include( src/asm/Files.cmake )
+include( src/qcommon/Files.cmake )
+include( src/sys/Files.cmake )
+include( src/sdl/Files.cmake )
+include( src/null/Files.cmake )
+include( src/server/Files.cmake )
+include( src/game/Files.cmake )
+include( src/ui/Files.cmake )
+
+
+#===============================================================================
+# Build Tremulous
+#===============================================================================
+
+if( BUILD_CLIENT OR BUILD_SERVER )
+  add_subdirectory( src/script )
+  set( COMMON_LINK_LIBRARIES
+    ${CMAKE_DL_LIBS}
+    ${LUA_LIB_TARGETS}
+    ${SOL_LIB_TARGETS}
+    ${RESTCLIENT_LIB_TARGETS}
+    ${NETTLE_LIB_TARGETS}
+    ${ZLIB_LIB_TARGETS}
+    script_api )
+endif( )
+
+if( BUILD_CLIENT )
+  add_subdirectory( src/client )
+  add_subdirectory( src/renderercommon )
+  add_subdirectory( src/renderergl1 )
+  add_subdirectory( src/renderergl2 )
+endif( )
+
+if( BUILD_SERVER )
+  add_subdirectory( src/server )
+endif( )
+
+if( BUILD_GAME )
+  add_subdirectory( src/tools )
+  add_subdirectory( src/game )
+  add_subdirectory( src/cgame )
+  add_subdirectory( src/ui )
+endif( )
+
+add_subdirectory( data )
+add_subdirectory( docs )
+
+install( FILES COPYING DESTINATION "${DOC_INSTALL_DIR}" )
