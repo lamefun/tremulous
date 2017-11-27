@@ -10,10 +10,9 @@ else( )
     CONFIGURE_COMMAND
       "${DEPS_PREFIX}/src/libjpeg-turbo/configure"
       "--prefix=${DEPS_PREFIX}"
-      --with-jpeg7
       --with-pic
-      --without-turbojpeg
       --enable-shared=
+      --without-turbojpeg
     BUILD_COMMAND ${MAKE}
     BUILD_BYPRODUCTS "${DEPS_PREFIX}/lib/libjpeg.a" )
 
