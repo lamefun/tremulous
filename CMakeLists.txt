@@ -122,6 +122,10 @@ if( PYTHON3_COMMAND STREQUAL "PYTHON3_COMMAND-NOTFOUND" )
   message( FATAL_ERROR "Python 3 not found" )
 endif( )
 
+# Where to build bundled dependencies.
+set( DEPS_PREFIX "${PROJECT_BINARY_DIR}/deps_build" )
+
+# Shared dependencies.
 include( deps/zlib/Dependency.cmake )
 include( deps/lua/Dependency.cmake )
 include( deps/sol/Dependency.cmake )
@@ -130,6 +134,7 @@ include( deps/rapidjson/Dependency.cmake )
 include( deps/restclient/Dependency.cmake )
 include( deps/nettle/Dependency.cmake )
 
+# Client-only dependencies.
 if( BUILD_CLIENT )
   find_package( OpenGL REQUIRED )
   include( deps/semver/Dependency.cmake )

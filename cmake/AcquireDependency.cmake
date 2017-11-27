@@ -24,7 +24,10 @@
 #     variables whose names end with an 'S' as well (for example, SDL2_LIBRARIES).
 #
 #   BUNDLED_SOURCE_DIRS
-#     Internal source directories, included using add_subdirectory( ).
+#     Bundled source directories, included using add_subdirectory( ).
+#
+#   BUNDLED_CMAKE_INCLUDES
+#     CMake include files for bundled projects, included using include( ).
 #
 #   BUNDLED_SOURCE_LIBRARIES
 #     Library targets built from bundledsources.
@@ -49,6 +52,7 @@ function( acquire_dependency NAME )
     FIND_PACKAGE_LIBRARIES_VARS
     FIND_PACKAGE_INCLUDE_DIRS_VARS
     BUNDLED_SOURCE_DIRS
+    BUNDLED_CMAKE_INCLUDES
     BUNDLED_SOURCE_LIBRARIES
     BUNDLED_WIN32_INCLUDE_DIRS
     BUNDLED_WIN32_LIBRARIES
@@ -71,7 +75,8 @@ function( acquire_dependency NAME )
   elseif( WIN32 AND "${CMAKE_SIZEOF_VOID_P}" EQUAL 8 AND
           NOT "${ARG_BUNDLED_WIN64_LIBRARIES}" STREQUAL "" )
     set( BUNDLED_TYPE Win64 )
-  elseif( NOT "${ARG_BUNDLED_SOURCE_DIRS}" STREQUAL "" )
+  elseif( NOT "${ARG_BUNDLED_SOURCE_DIRS}" STREQUAL "" OR
+          NOT "${ARG_BUNDLED_CMAKE_INCLUDES}" STREQUAL "" )
     set( BUNDLED_TYPE Source )
   endif( )
 
@@ -82,14 +87,15 @@ function( acquire_dependency NAME )
     set( HAVE_EXTERNAL TRUE )
   endif( )
 
-  # Check if we want to ignore bundleddependencies.
+  # Check if we want to ignore bundled dependencies.
   if( "${BUNDLED_DEPS}" STREQUAL Never AND HAVE_EXTERNAL )
     set( BUNDLED_TYPE None )
   endif( )
 
   # Check if we want to ignore external dependencies.
   set( IGNORE_EXTERNAL FALSE )
-  if( "${BUNDLED_DEPS}" STREQUAL Always AND HAVE_BUNDLED )
+  if( "${BUNDLED_DEPS}" STREQUAL Always AND
+      NOT "${BUNDLED_TYPE}" STREQUAL None )
     set( IGNORE_EXTERNAL TRUE )
   endif( )
 
@@ -130,25 +136,34 @@ function( acquire_dependency NAME )
 
   # Try using pre-built Win32 libraries.
   if( NOT FOUND AND "${BUNDLED_TYPE}" STREQUAL Win32 )
-    message( "Using pre-built Win32 libraries for ${NAME}: \
-${ARG_BUNDLED_WIN32_LIBRARIES}" )
-    set( INCLUDE_DIRS ${ARG_BUNDLED_WIN32_INCLUDE_DIRS} )
-    set( LIBRARIES ${ARG_BUNDLED_WIN32_LIBRARIES} )
+    message( STATUS "Using pre-built Win32 libraries for ${NAME}" )
+    message( STATUS "  Include directories: ${ARG_BUNDLED_WIN32_INCLUDE_DIRS}" )
+    message( STATUS "  Libraries: ${ARG_BUNDLED_WIN32_LIBRARIES}" )
     set( FOUND TRUE )
   endif( )
 
   # Try using pre-built Win64 libraries.
   if( NOT FOUND AND "${BUNDLED_TYPE}" STREQUAL Win64 )
-    message( "Using pre-built Win64 libraries for ${NAME}: \
-${ARG_BUNDLED_WIN64_LIBRARIES}" )
+    message( STATUS "Using pre-built Win64 libraries for ${NAME}" )
+    message( STATUS "  Include directories: ${ARG_BUNDLED_WIN64_INCLUDE_DIRS}" )
+    message( STATUS "  Libraries: ${ARG_BUNDLED_WIN64_LIBRARIES}" )
     set( INCLUDE_DIRS ${ARG_BUNDLED_WIN64_INCLUDE_DIRS} )
     set( LIBRARIES ${ARG_BUNDLED_WIN64_LIBRARIES} )
     set( FOUND TRUE )
   endif( )
 
-  # Try using bundledsources.
+  # Try using bundled sources.
   if( NOT FOUND AND "${BUNDLED_TYPE}" STREQUAL Source )
-    message( "Using bundledsources for ${NAME}: ${ARG_BUNDLED_SOURCE_DIRS}" )
+    message( STATUS "Using bundled sources for ${NAME}" )
+    if( NOT "${ARG_BUNDLED_SOURCE_DIRS}" STREQUAL "" )
+      message( STATUS "  Source directories: ${ARG_BUNDLED_SOURCE_DIRS}" )
+    endif( )
+    if( NOT "${ARG_BUNDLED_INCLUDE_DIRS}" STREQUAL "" )
+      message( STATUS "  CMake includes: ${ARG_BUNDLED_CMAKE_INCLUDES}" )
+    endif( )
+    foreach( INC IN LISTS ARG_BUNDLED_CMAKE_INCLUDES )
+      include( "${INC}" )
+    endforeach( )
     foreach( DIR IN LISTS ARG_BUNDLED_SOURCE_DIRS )
       add_subdirectory( "${DIR}" )
     endforeach( )
