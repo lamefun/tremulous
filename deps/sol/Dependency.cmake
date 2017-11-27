@@ -1,4 +1,4 @@
 acquire_dependency( sol REQUIRED
-  INTERNAL_SOURCE_DIRS deps/sol/sol
-  INTERNAL_SOURCE_LIBRARIES sol
+  BUNDLED_SOURCE_DIRS deps/sol/sol
+  BUNDLED_SOURCE_LIBRARIES sol
 )

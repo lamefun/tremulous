@@ -21,8 +21,8 @@ option( BUILD_CLIENT "Build Tremulous client" ON )
 option( BUILD_SERVER "Build Tremulous server" ON )
 option( BUILD_GAME "Build Tremulous game logic" ON )
 
-set( INTERNAL_DEPS "Fallback" CACHE STRING
-     "When to use internal dependencies (Always|Fallback|Never)" )
+set( BUNDLED_DEPS "Fallback" CACHE STRING
+     "When to use bundleddependencies (Always|Fallback|Never)" )
 
 set( INSTALL_LAYOUT "Regular" CACHE STRING
      "Installation layout (Regular|Portable|Windows)" )

@@ -23,16 +23,16 @@
 #     with an 'S' (for example, FIND_PACKAGE_LIBRARIES_VARS) for find output
 #     variables whose names end with an 'S' as well (for example, SDL2_LIBRARIES).
 #
-#   INTERNAL_SOURCE_DIRS
+#   BUNDLED_SOURCE_DIRS
 #     Internal source directories, included using add_subdirectory( ).
 #
-#   INTERNAL_SOURCE_LIBRARIES
-#     Library targets built from internal sources.
+#   BUNDLED_SOURCE_LIBRARIES
+#     Library targets built from bundledsources.
 #
-#   INTERNAL_WIN32_INCLUDE_DIRS
-#   INTERNAL_WIN32_LIBRARIES
-#   INTERNAL_WIN64_INCLUDE_DIRS
-#   INTERNAL_WIN64_LIBRARIES
+#   BUNDLED_WIN32_INCLUDE_DIRS
+#   BUNDLED_WIN32_LIBRARIES
+#   BUNDLED_WIN64_INCLUDE_DIRS
+#   BUNDLED_WIN64_LIBRARIES
 #     Pre-built libraries and include directories for them.
 
 include( CMakeParseArguments )
@@ -48,12 +48,12 @@ function( acquire_dependency NAME )
     FIND_PACKAGE_INCLUDE_DIR_VARS
     FIND_PACKAGE_LIBRARIES_VARS
     FIND_PACKAGE_INCLUDE_DIRS_VARS
-    INTERNAL_SOURCE_DIRS
-    INTERNAL_SOURCE_LIBRARIES
-    INTERNAL_WIN32_INCLUDE_DIRS
-    INTERNAL_WIN32_LIBRARIES
-    INTERNAL_WIN64_INCLUDE_DIRS
-    INTERNAL_WIN64_LIBRARIES )
+    BUNDLED_SOURCE_DIRS
+    BUNDLED_SOURCE_LIBRARIES
+    BUNDLED_WIN32_INCLUDE_DIRS
+    BUNDLED_WIN32_LIBRARIES
+    BUNDLED_WIN64_INCLUDE_DIRS
+    BUNDLED_WIN64_LIBRARIES )
 
   # Parse the arguments.
   cmake_parse_arguments( ARG "${FLAGS}" "${SINGLE_PARAM_ARGS}"
@@ -64,15 +64,15 @@ function( acquire_dependency NAME )
   set( LIBRARIES )    # List of libraries to link with.
 
   # Check what type of a bundled dependency to use.
-  set( INTERNAL_TYPE None )
+  set( BUNDLED_TYPE None )
   if( WIN32 AND "${CMAKE_SIZEOF_VOID_P}" EQUAL 4 AND
-      NOT "${ARG_INTERNAL_WIN32_LIBRARIES}" STREQUAL "" )
-    set( INTERNAL_TYPE Win32 )
+      NOT "${ARG_BUNDLED_WIN32_LIBRARIES}" STREQUAL "" )
+    set( BUNDLED_TYPE Win32 )
   elseif( WIN32 AND "${CMAKE_SIZEOF_VOID_P}" EQUAL 8 AND
-          NOT "${ARG_INTERNAL_WIN64_LIBRARIES}" STREQUAL "" )
-    set( INTERNAL_TYPE Win64 )
-  elseif( NOT "${ARG_INTERNAL_SOURCE_DIRS}" STREQUAL "" )
-    set( INTERNAL_TYPE Source )
+          NOT "${ARG_BUNDLED_WIN64_LIBRARIES}" STREQUAL "" )
+    set( BUNDLED_TYPE Win64 )
+  elseif( NOT "${ARG_BUNDLED_SOURCE_DIRS}" STREQUAL "" )
+    set( BUNDLED_TYPE Source )
   endif( )
 
   # Check if we have information to find the dependency.
@@ -82,14 +82,14 @@ function( acquire_dependency NAME )
     set( HAVE_EXTERNAL TRUE )
   endif( )
 
-  # Check if we want to ignore internal dependencies.
-  if( "${INTERNAL_DEPS}" STREQUAL Never AND HAVE_EXTERNAL )
-    set( INTERNAL_TYPE None )
+  # Check if we want to ignore bundleddependencies.
+  if( "${BUNDLED_DEPS}" STREQUAL Never AND HAVE_EXTERNAL )
+    set( BUNDLED_TYPE None )
   endif( )
 
   # Check if we want to ignore external dependencies.
   set( IGNORE_EXTERNAL FALSE )
-  if( "${INTERNAL_DEPS}" STREQUAL Always AND HAVE_INTERNAL )
+  if( "${BUNDLED_DEPS}" STREQUAL Always AND HAVE_BUNDLED )
     set( IGNORE_EXTERNAL TRUE )
   endif( )
 
@@ -129,30 +129,30 @@ function( acquire_dependency NAME )
   endif( )
 
   # Try using pre-built Win32 libraries.
-  if( NOT FOUND AND "${INTERNAL_TYPE}" STREQUAL Win32 )
+  if( NOT FOUND AND "${BUNDLED_TYPE}" STREQUAL Win32 )
     message( "Using pre-built Win32 libraries for ${NAME}: \
-${ARG_INTERNAL_WIN32_LIBRARIES}" )
-    set( INCLUDE_DIRS ${ARG_INTERNAL_WIN32_INCLUDE_DIRS} )
-    set( LIBRARIES ${ARG_INTERNAL_WIN32_LIBRARIES} )
+${ARG_BUNDLED_WIN32_LIBRARIES}" )
+    set( INCLUDE_DIRS ${ARG_BUNDLED_WIN32_INCLUDE_DIRS} )
+    set( LIBRARIES ${ARG_BUNDLED_WIN32_LIBRARIES} )
     set( FOUND TRUE )
   endif( )
 
   # Try using pre-built Win64 libraries.
-  if( NOT FOUND AND "${INTERNAL_TYPE}" STREQUAL Win64 )
+  if( NOT FOUND AND "${BUNDLED_TYPE}" STREQUAL Win64 )
     message( "Using pre-built Win64 libraries for ${NAME}: \
-${ARG_INTERNAL_WIN64_LIBRARIES}" )
-    set( INCLUDE_DIRS ${ARG_INTERNAL_WIN64_INCLUDE_DIRS} )
-    set( LIBRARIES ${ARG_INTERNAL_WIN64_LIBRARIES} )
+${ARG_BUNDLED_WIN64_LIBRARIES}" )
+    set( INCLUDE_DIRS ${ARG_BUNDLED_WIN64_INCLUDE_DIRS} )
+    set( LIBRARIES ${ARG_BUNDLED_WIN64_LIBRARIES} )
     set( FOUND TRUE )
   endif( )
 
-  # Try using internal sources.
-  if( NOT FOUND AND "${INTERNAL_TYPE}" STREQUAL Source )
-    message( "Using internal sources for ${NAME}: ${ARG_INTERNAL_SOURCE_DIRS}" )
-    foreach( DIR IN LISTS ARG_INTERNAL_SOURCE_DIRS )
+  # Try using bundledsources.
+  if( NOT FOUND AND "${BUNDLED_TYPE}" STREQUAL Source )
+    message( "Using bundledsources for ${NAME}: ${ARG_BUNDLED_SOURCE_DIRS}" )
+    foreach( DIR IN LISTS ARG_BUNDLED_SOURCE_DIRS )
       add_subdirectory( "${DIR}" )
     endforeach( )
-    set( LIBRARIES ${ARG_INTERNAL_SOURCE_LIBRARIES} )
+    set( LIBRARIES ${ARG_BUNDLED_SOURCE_LIBRARIES} )
     set( FOUND TRUE )
   endif( )
 

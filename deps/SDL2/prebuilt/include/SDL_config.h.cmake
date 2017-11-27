@@ -177,7 +177,7 @@
 #include <stdarg.h>
 #endif /* HAVE_LIBC */
 
-/* SDL internal assertion support */
+/* SDL bundledassertion support */
 #cmakedefine SDL_DEFAULT_ASSERT_LEVEL @SDL_DEFAULT_ASSERT_LEVEL@
 
 /* Allow disabling of core subsystems */
