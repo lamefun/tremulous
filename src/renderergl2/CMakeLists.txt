@@ -26,8 +26,7 @@ set( GLSL_SHADERS
   glsl/texturecolor_fp.glsl
   glsl/texturecolor_vp.glsl
   glsl/tonemap_fp.glsl
-  glsl/tonemap_vp.glsl
-)
+  glsl/tonemap_vp.glsl )
 
 file( MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/glsl" )
 
@@ -78,8 +77,7 @@ add_library( renderer_opengl2 SHARED
   tr_surface.cpp
   tr_vbo.cpp
   tr_world.cpp
-  ${SHADER_SOURCES}
-)
+  ${SHADER_SOURCES} )
 
 target_link_libraries( renderer_opengl2 renderercommon )
 

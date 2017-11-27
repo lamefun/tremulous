@@ -24,8 +24,7 @@ set( CGAME_SOURCES
   cg_weapons.c
   ${BGAME_SOURCES}
   ${BGAME_PMOVE_SOURCES}
-  ${UI_SHARED_SOURCES}
-)
+  ${UI_SHARED_SOURCES} )
 
 add_library( cgame SHARED ${CGAME_SOURCES} cg_syscalls.c )
 

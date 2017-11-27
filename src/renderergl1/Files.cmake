@@ -22,5 +22,4 @@ list_append_prefixed( RENDERER_OPENGL1_SOURCES
   tr_sky.cpp
   tr_subs.cpp
   tr_surface.cpp
-  tr_world.cpp
-)
+  tr_world.cpp )

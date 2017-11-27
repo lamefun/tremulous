@@ -8,5 +8,4 @@ list_append_prefixed( SERVER_SOURCES
   sv_init.cpp
   sv_main.cpp
   sv_net_chan.cpp
-  sv_world.cpp
-)
+  sv_world.cpp )

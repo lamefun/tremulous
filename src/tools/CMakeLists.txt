@@ -1,15 +1,12 @@
 add_executable( lburg
   lcc/lburg/lburg.c
-  lcc/lburg/gram.c
-)
+  lcc/lburg/gram.c )
 
 add_custom_command(
-  OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/dagcheck.c"
+  OUTPUT dagcheck.c
   COMMAND lburg
   ARGS "${CMAKE_CURRENT_SOURCE_DIR}/lcc/src/dagcheck.md" dagcheck.c
   DEPENDS lburg lcc/src/dagcheck.md )
-
-set_source_files_properties(dagcheck.c PROPERTIES GENERATED TRUE)
 
 add_executable( q3rcc
   lcc/src/alloc.c
@@ -40,8 +37,7 @@ add_executable( q3rcc
   lcc/src/symbolic.c
   lcc/src/trace.c
   lcc/src/tree.c
-  lcc/src/types.c
-)
+  lcc/src/types.c )
 
 target_include_directories( q3rcc PUBLIC lcc/src "${TOP_SRCDIR}" )
 
@@ -55,26 +51,24 @@ add_executable( q3cpp
   lcc/cpp/include.c
   lcc/cpp/hideset.c
   lcc/cpp/getopt.c
-  lcc/cpp/unix.c
-)
+  lcc/cpp/unix.c )
 
 target_include_directories( q3cpp PRIVATE lcc/cpp "${TOP_SRCDIR}" )
 
 add_executable( q3lcc
   lcc/etc/bytecode.c
-  lcc/etc/lcc.c
-)
+  lcc/etc/lcc.c )
+
 
 target_include_directories( q3lcc PRIVATE lcc/etc "${TOP_SRCDIR}" )
 
 add_executable( q3asm
   asm/q3asm.c
-  asm/cmdlib.c
-)
+  asm/cmdlib.c )
 
 target_include_directories( q3asm PRIVATE asm "${TOP_SRCDIR}" )
 
-install(
-  TARGETS q3lcc q3cpp q3rcc q3asm
-  DESTINATION "${TOOL_EXE_INSTALL_DIR}"
-)
+if( INSTALL_QVM_TOOLS )
+  install( TARGETS q3lcc q3cpp q3rcc q3asm
+    DESTINATION "${TOOL_EXE_INSTALL_DIR}" )
+endif( )

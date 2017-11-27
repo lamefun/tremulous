@@ -122,5 +122,4 @@ set( ALL_ASSETS
   ui/tremulous_humanitem.menu
   ui/tremulous_spectator_hud.menu
   ui/tremulous_teamselect.menu
-  ui/tremulous_voicecmd.menu
-)
+  ui/tremulous_voicecmd.menu )

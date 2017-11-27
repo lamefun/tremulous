@@ -20,7 +20,10 @@ set( GAME_PK3_NAME tremulous )
 option( BUILD_CLIENT "Build Tremulous client" ON )
 option( BUILD_SERVER "Build Tremulous server" ON )
 option( BUILD_GAME "Build Tremulous game logic" ON )
-option( INTERNAL_DEPS "Use internal dependencies where possible" OFF )
+
+set( INTERNAL_DEPS "Fallback" CACHE STRING
+     "When to use internal dependencies (Always|Fallback|Never)" )
+
 set( INSTALL_LAYOUT "Regular" CACHE STRING
      "Installation layout (Regular|Portable|Windows)" )
 
@@ -37,10 +40,12 @@ set( CMAKE_CXX_STANDARD 14 )
 set( CMAKE_POSITION_INDEPENDENT_CODE ON )
 
 # Use our custom CMake module directory.
-list( APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" )
+list( APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/Modules" )
 
-# Include our utility module.
-include( TremulousUtils )
+# Include our utilities.
+include( cmake/AcquireDependency.cmake )
+include( cmake/BuildQVM.cmake )
+include( cmake/Utilities.cmake )
 
 # Toplevel "src" directory.
 set( TOP_SRCDIR "${CMAKE_CURRENT_SOURCE_DIR}/src" )
@@ -117,57 +122,22 @@ if( PYTHON3_COMMAND STREQUAL "PYTHON3_COMMAND-NOTFOUND" )
   message( FATAL_ERROR "Python 3 not found" )
 endif( )
 
-find_dependency( ZLIB REQUIRED
-  PKG_CONFIG zlib
-  INTERNAL_SOURCE_DIRS external/zlib
-  INTERNAL_LIB_TARGETS zlib )
-
-find_dependency( LUA REQUIRED
-  PKG_CONFIG lua
-  INTERNAL_SOURCE_DIRS external/lua-5.3.3
-  INTERNAL_LIB_TARGETS lua )
-
-find_dependency( SOL REQUIRED
-  INTERNAL_SOURCE_DIRS external/sol
-  INTERNAL_LIB_TARGETS sol )
-
-find_dependency( CURL REQUIRED
-  PKG_CONFIG libcurl )
-
-find_dependency( RAPIDJSON REQUIRED
-  INTERNAL_SOURCE_DIRS external/rapidjson
-  INTERNAL_LIB_TARGETS rapidjson )
-
-find_dependency( RESTCLIENT REQUIRED
-  INTERNAL_SOURCE_DIRS external/restclient
-  INTERNAL_LIB_TARGETS restclient )
-
-find_dependency( NETTLE REQUIRED
-  INTERNAL_SOURCE_DIRS external/nettle-3.3
-  INTERNAL_LIB_TARGETS nettle )
+include( deps/zlib/Dependency.cmake )
+include( deps/lua/Dependency.cmake )
+include( deps/sol/Dependency.cmake )
+include( deps/curl/Dependency.cmake )
+include( deps/rapidjson/Dependency.cmake )
+include( deps/restclient/Dependency.cmake )
+include( deps/nettle/Dependency.cmake )
 
 if( BUILD_CLIENT )
-  find_dependency( SEMVER REQUIRED
-    INTERNAL_SOURCE_DIRS external/semver
-    INTERNAL_LIB_TARGETS semver )
-
-  find_dependency( SDL2 REQUIRED
-    PKG_CONFIG sdl2 )
-
   find_package( OpenGL REQUIRED )
-
-  find_dependency( OPENAL REQUIRED
-    PKG_CONFIG openal )
-
-  find_dependency( LIBJPEG REQUIRED
-    PKG_CONFIG libjpeg
-    INTERNAL_SOURCE_DIRS external/jpeg-8c
-    INTERNAL_LIB_TARGETS jpeg-8c )
-
-  find_dependency( VORBISFILE REQUIRED
-    PKG_CONFIG vorbisfile
-    INTERNAL_SOURCE_DIRS external/libogg-1.3.2 external/libvorbis-1.3.5
-    INTERNAL_LIB_TARGETS vorbis )
+  include( deps/semver/Dependency.cmake )
+  include( deps/SDL2/Dependency.cmake )
+  include( deps/libjpeg/Dependency.cmake )
+  include( deps/vorbisfile/Dependency.cmake )
+  #include( deps/opus/Dependency.cmake )
+  include( deps/OpenAL/Dependency.cmake )
 endif( )
 
 
@@ -193,11 +163,11 @@ if( BUILD_CLIENT OR BUILD_SERVER )
   add_subdirectory( src/script )
   set( COMMON_LINK_LIBRARIES
     ${CMAKE_DL_LIBS}
-    ${LUA_LIB_TARGETS}
-    ${SOL_LIB_TARGETS}
-    ${RESTCLIENT_LIB_TARGETS}
-    ${NETTLE_LIB_TARGETS}
-    ${ZLIB_LIB_TARGETS}
+    DEPS::lua
+    DEPS::sol
+    DEPS::restclient
+    DEPS::nettle
+    DEPS::zlib
     script_api )
 endif( )
 

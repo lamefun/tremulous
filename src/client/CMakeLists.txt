@@ -27,8 +27,7 @@ add_executable( tremulous
   snd_codec_ogg.cpp
   snd_codec_opus.cpp
   snd_mem.cpp
-  snd_mix.cpp
-)
+  snd_mix.cpp )
 
 target_include_directories( tremulous PRIVATE
   ${TREMULOUS_INCLUDE_DIRECTORIES} )
@@ -38,14 +37,13 @@ target_compile_definitions( tremulous PRIVATE
 
 target_link_libraries( tremulous
   ${COMMON_LINK_LIBRARIES}
-  ${RAPIDJSON_LIB_TARGETS}
-  ${RESTCLIENT_LIB_TARGETS}
-  ${SEMVER_LIB_TARGETS}
-  ${SDL2_LIB_TARGETS}
-  ${LIBJPEG_LIB_TARGETS}
-  ${OPENAL_LIB_TARGETS}
-  ${VORBISFILE_LIB_TARGETS}
-)
+  DEPS::rapidjson
+  DEPS::restclient
+  DEPS::semver
+  DEPS::SDL2
+  DEPS::libjpeg
+  DEPS::OpenAL
+  DEPS::vorbisfile )
 
 set_target_properties( tremulous PROPERTIES ENABLE_EXPORTS ON )
 

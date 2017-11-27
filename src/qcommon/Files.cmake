@@ -25,11 +25,9 @@ list_append_prefixed( COMMON_SOURCES
   puff.cpp
   q3_lauxlib.cpp
   unzip.cpp
-  vm.cpp
-)
+  vm.cpp )
 
 list_append_prefixed( COMMON_QVM_SOURCES
   PREFIX "${CMAKE_CURRENT_LIST_DIR}/"
   q_math.c
-  q_shared.c
-)
+  q_shared.c )

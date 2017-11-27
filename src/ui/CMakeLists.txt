@@ -3,8 +3,7 @@ set( UI_SOURCES
   ui_atoms.c
   ui_gameinfo.c
   ${BGAME_SOURCES}
-  ${UI_SHARED_SOURCES}
-)
+  ${UI_SHARED_SOURCES} )
 
 add_library( ui SHARED ${UI_SOURCES} ui_syscalls.c )
 
