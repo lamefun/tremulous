@@ -13,6 +13,6 @@ structures which allow them to re-enter the battlefield.
 [Development on Windows](docs/DevelopmentOnWindows.md)  
 [Development on macOS](docs/DevelopmentOnMacOS.md)  
 [Development on Linux](docs/DevelopmentOnLinux.md)  
-[Running servers](tremulous-engine/docs/RunningServers.md)  
-[Tremulous documentation](tremulous-engine/docs/Index.md)  
+[Running servers](tremulous/docs/Servers/RunningServers.md)  
+[Tremulous documentation](tremulous/docs/Index.md)  
 [Licensing](COPYING.md)
