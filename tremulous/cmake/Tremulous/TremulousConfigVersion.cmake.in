@@ -1,0 +1,7 @@
+set( Tremulous_VERSION_STRING "@Tremulous_VERSION_STRING@" )
+set( Tremulous_VERSION_MAJOR @Tremulous_VERSION_MAJOR@ )
+set( Tremulous_VERSION_MINOR @Tremulous_VERSION_MINOR@ )
+set( Tremulous_VERSION_PATCH @Tremulous_VERSION_PATCH@ )
+set( Tremulous_VERSION_TWEAK @Tremulous_VERSION_TWEAK@ )
+set( Tremulous_VERSION_COUNT @Tremulous_VERSION_COUNT@ )
+set( Tremulous_VERSION_EXTRA "@Tremulous_VERSION_EXTRA@" )

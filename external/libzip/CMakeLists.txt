@@ -1,0 +1,6 @@
+# Official website: https://libzip.org
+ExternalProject_Add( libzip
+  SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/libzip"
+  PREFIX "${BUILD_PREFIX}"
+  CMAKE_CACHE_ARGS ${EXTERNAL_CMAKE_CACHE_ARGS}
+  CMAKE_ARGS ${EXTERNAL_CMAKE_ARGS} -DBUILD_SHARED_LIBS=OFF )

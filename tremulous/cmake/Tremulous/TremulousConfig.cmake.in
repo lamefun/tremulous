@@ -1,0 +1,97 @@
+# Initialize the package utilities.
+@PACKAGE_INIT@
+
+# Include the version.
+include( "${CMAKE_CURRENT_LIST_DIR}/TremulousConfigVersion.cmake" )
+
+# Which components are present.
+set( Tremulous_CLIENT_FOUND FALSE )
+set( Tremulous_SERVER_FOUND FALSE )
+set( Tremulous_SDK_FOUND FALSE )
+
+# Install layout. We don't check these because they might not exist depending on
+# the configuration (eg. Tremulous_TOOLS_DIR might not exist if there are no
+# tools installed).
+set( Tremulous_EXE_DIR "@PACKAGE_INSTDIR_EXE@" )
+set( Tremulous_DLL_DIR "@PACKAGE_INSTDIR_DLL@" )
+set( Tremulous_TOOLS_DIR "@PACKAGE_INSTDIR_TOOLS@" )
+set( Tremulous_DATA_DIR "@PACKAGE_INSTDIR_DATA@" )
+set( Tremulous_DOCS_DIR "@PACKAGE_INSTDIR_DOCS@" )
+
+# CLIENT component.
+if( CLIENT IN_LIST Tremulous_FIND_COMPONENTS )
+  find_program( Tremulous_CLIENT
+    NAMES tremulous
+    PATHS "@PACKAGE_INSTDIR_EXE@"
+    NO_DEFAULT_PATH )
+  mark_as_advanced( Tremulous_CLIENT )
+  if( Tremulous_CLIENT )
+    message( STATUS "Found Tremulous client: ${Tremulous_CLIENT}" )
+    set( Tremulous_CLIENT_FOUND TRUE)
+  endif( )
+endif( )
+
+# SERVER component.
+if( SERVER IN_LIST Tremulous_FIND_COMPONENTS )
+  find_program( Tremulous_SERVER
+    NAMES tremulous-server
+    PATHS "@PACKAGE_INSTDIR_EXE@"
+    NO_DEFAULT_PATH )
+  mark_as_advanced( Tremulous_SERVER )
+  if( Tremulous_SERVER )
+    message( STATUS "Found Tremulous server: ${Tremulous_SERVER}" )
+    set( Tremulous_SERVER_FOUND TRUE )
+  endif( )
+endif( )
+
+# PK3 component.
+if( PK3 IN_LIST Tremulous_FIND_COMPONENTS )
+  find_program( Tremulous_ZIPTOOL
+    NAMES ziptool
+    PATHS "@PACKAGE_INSTDIR_TOOLS@" )
+  mark_as_advanced( Tremulous_ZIPTOOL )
+  if( Tremulous_ZIPTOOL )
+    message( STATUS "Found Tremulous packaging tools" )
+    message( STATUS "ziptool: ${Tremulous_ZIPTOOL}" )
+    set( Tremulous_PK3_FOUND TRUE )
+  endif( )
+endif( )
+
+# SDK component.
+if( SDK IN_LIST Tremulous_FIND_COMPONENTS )
+  find_path( Tremulous_INCLUDE_DIR
+    NAMES qcommon/q_shared.h
+    PATHS "@PACKAGE_INSTDIR_INCLUDE@"
+    NO_DEFAULT_PATH )
+  find_program( Tremulous_Q3LCC q3lcc
+    PATHS "@PACKAGE_INSTDIR_TOOLS@"
+    NO_DEFAULT_PATH )
+  find_program( Tremulous_Q3ASM q3asm
+    PATHS "@PACKAGE_INSTDIR_TOOLS@"
+    NO_DEFAULT_PATH )
+  mark_as_advanced(
+    Tremulous_INCLUDE_DIR
+    Tremulous_Q3LCC
+    Tremulous_Q3ASM )
+  if( Tremulous_INCLUDE_DIR AND Tremulous_Q3LCC AND Tremulous_Q3ASM )
+    message( STATUS "Found Tremulous SDK" )
+    message( STATUS "include: ${Tremulous_INCLUDE_DIR}" )
+    message( STATUS "q3lcc: ${Tremulous_Q3LCC}" )
+    message( STATUS "q3asm: ${Tremulous_Q3ASM}" )
+    set( Tremulous_SDK_FOUND TRUE )
+  endif( )
+endif( )
+
+# Include modules.
+include( "${CMAKE_CURRENT_LIST_DIR}/AddTremulousPk3.cmake" )
+include( "${CMAKE_CURRENT_LIST_DIR}/AddTremulousGame.cmake" )
+
+# Check if all required components were found.
+foreach( component IN LISTS Tremulous_FIND_COMPONENTS )
+  if( NOT Tremulous_${component}_FOUND )
+    if( Tremulous_FIND_REQUIRED_${component} )
+      message( FATAL_ERROR "Tremulous ${component} component was not found" )
+      set( Tremulous_FOUND FALSE )
+    endif( )
+  endif( )
+endforeach( )

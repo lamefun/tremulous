@@ -1,3 +1,6 @@
-[submodule "data/base"]
-	path = data/base
+[submodule "tremulous-game-base/data"]
+	path = tremulous-game-base/data
 	url = https://github.com/wtfbbqhax/tremulous-data
+[submodule "external/libzip/libzip"]
+	path = external/libzip/libzip
+	url = https://github.com/nih-at/libzip

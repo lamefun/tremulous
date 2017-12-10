@@ -1,200 +1,104 @@
 #===============================================================================
-# Project information
+#
+# This is the Tremulous superbuild, which builds, installs and packages the
+# Tremulous engine, the basics assets, the standard game modifications, and all
+# the dependencies necessary for Tremulous to function.
+#
+# Note that the Tremulous components are by themselves complete CMake projects
+# and can be built independently, if provided with the necessary dependencies.
+# The superbuild only exists for development and packaging convenience.
+#
 #===============================================================================
 
-cmake_minimum_required(VERSION 3.6)
-project(tremulous)
+# Define the project.
+cmake_minimum_required( VERSION 3.6 )
+project( tremulous-superbuild C CXX )
 
-# Tremulous version.
-set( PRODUCT_VERSION 1.3.0 )
+# Include the ExternalProject module.
+include( ExternalProject )
 
-# Change these when working on a mod.
-set( GAME_MOD_NAME gpp )
-set( GAME_PK3_NAME tremulous )
+# Define the build environment. See the include itself for the information about
+# the build environment variables.
+include( Environment.cmake )
 
+#-------------------------------------------------------------------------------
+# Superbuild Options
+#-------------------------------------------------------------------------------
 
-#===============================================================================
-# Options
-#===============================================================================
+# Include the engine options.
+include( tremulous/cmake/Options.cmake )
 
-option( BUILD_CLIENT "Build Tremulous client" ON )
-option( BUILD_SERVER "Build Tremulous server" ON )
-option( BUILD_GAME "Build Tremulous game logic" ON )
+# Superbuild options.
+option( INSTALL_BASE_DATA "Whether to install the base assets" ON )
+option( BUILD_GAME_GPP "Build the GPP game modification" ON )
+option( BUILD_GAME_SWIRL "Build the Swirl game modification" ON )
 
-set( BUNDLED_DEPS "Fallback" CACHE STRING
-     "When to use bundleddependencies (Always|Fallback|Never)" )
+#-------------------------------------------------------------------------------
+# Third-Party Dependencies
+#-------------------------------------------------------------------------------
 
-set( INSTALL_LAYOUT "Regular" CACHE STRING
-     "Installation layout (Regular|Portable|Windows)" )
-
-
-#===============================================================================
-# Basics
-#===============================================================================
-
-# Use C++14 and C99 standards.
-set( CMAKE_C_STANDARD 99 )
-set( CMAKE_CXX_STANDARD 14 )
-
-# Enable position-independent code.
-set( CMAKE_POSITION_INDEPENDENT_CODE ON )
-
-# Use our custom CMake module directory.
-list( APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/Modules" )
-
-# Include our utilities.
-include( cmake/AcquireDependency.cmake )
-include( cmake/BuildQVM.cmake )
-include( cmake/Utilities.cmake )
-
-# Toplevel "src" directory.
-set( TOP_SRCDIR "${CMAKE_CURRENT_SOURCE_DIR}/src" )
-
-# Tremulous include directories.
-set( TREMULOUS_INCLUDE_DIRECTORIES "${TOP_SRCDIR}" )
-
-# Tremulous compiler definitions.
-set( TREMULOUS_COMPILE_DEFINITIONS
-  USE_RESTCLIENT
-  USE_RENDERER_DLOPEN
-  USE_OPENAL
-  PRODUCT_VERSION="${PRODUCT_VERSION}"
-  GAMEMOD="${GAME_MOD_NAME}" )
-
-# Add WIN32 flag if building on Windows.
-if( WIN32 )
-  list( APPEND TREMULOUS_COMPILE_DEFINITIONS WIN32 )
-endif( )
-
-
-#===============================================================================
-# Installation directories
-#===============================================================================
-
-# Check if the installation layout is supported.
-if( NOT INSTALL_LAYOUT MATCHES Regular|Portable|Windows )
-  message( FATAL_ERROR
-    "The \"${INSTALL_LAYOUT}\" installation layout is not supported."
-    "Supported layouts are: Regular, Portable and Windows." )
-endif( )
-
-# Check whether to install the Freedesktop application metadata used by Linux
-# and most other UNIX-like systems (for example, the icons and the application
-# launcher).
-set( INSTALL_FREEDESKTOP_METADATA FALSE )
-if( INSTALL_LAYOUT STREQUAL Regular AND UNIX AND NOT APPLE )
-  set( INSTALL_FREEDESKTOP_METADATA TRUE )
-endif( )
-
-# Use a flat installation layout for Windows and portable builds. Use the
-# standard GNU installation directories in all other cases.
-if( INSTALL_LAYOUT MATCHES Portable|Windows )
-  set( GAME_EXE_INSTALL_DIR "." )
-  set( TOOL_EXE_INSTALL_DIR "tools" )
-  set( SHARED_MODULE_INSTALL_DIR "libs" )
-  set( BASE_DATA_INSTALL_DIR "base" )
-  set( GAME_DATA_INSTALL_DIR "${GAME_MOD_NAME}" )
-  set( DOC_INSTALL_DIR "docs" )
-else( )
-  include( GNUInstallDirs )
-  set( TREMULOUS_DATA_DIR "${CMAKE_INSTALL_FULL_DATADIR}/tremulous" )
-  set( GAME_EXE_INSTALL_DIR "${CMAKE_INSTALL_FULL_BINDIR}" )
-  set( TOOL_EXE_INSTALL_DIR "${CMAKE_INSTALL_FULL_LIBEXECDIR}/tremulous" )
-  set( SHARED_MODULE_INSTALL_DIR "${CMAKE_INSTALL_FULL_LIBDIR}/tremoulous" )
-  set( BASE_DATA_INSTALL_DIR "${TREMULOUS_DATA_DIR}/base" )
-  set( GAME_DATA_INSTALL_DIR "${TREMULOUS_DATA_DIR}/${GAME_MOD_NAME}" )
-  set( DOC_INSTALL_DIR "${CMAKE_INSTALL_FULL_DATADIR}/doc/tremulous" )
-  list( APPEND TREMULOUS_COMPILE_DEFINITIONS
-    FS_DEFAULT_BASEPATH="${TREMULOUS_DATA_DIR}"
-    SYS_SHARED_MODULE_DIR="${SHARED_MODULE_INSTALL_DIR}" )
-endif( )
-
-
-#===============================================================================
-# Dependencies
-#===============================================================================
-
-find_program( PYTHON3_COMMAND
-  NAMES python3 python
-  DOC "Python 3 command" )
-
-if( PYTHON3_COMMAND STREQUAL "PYTHON3_COMMAND-NOTFOUND" )
-  message( FATAL_ERROR "Python 3 not found" )
-endif( )
-
-# Where to build bundled dependencies.
-set( DEPS_PREFIX "${PROJECT_BINARY_DIR}/deps_build" )
-
-# Shared dependencies.
-include( deps/zlib/Dependency.cmake )
-include( deps/lua/Dependency.cmake )
-include( deps/sol/Dependency.cmake )
-include( deps/curl/Dependency.cmake )
-include( deps/rapidjson/Dependency.cmake )
-include( deps/restclient/Dependency.cmake )
-include( deps/nettle/Dependency.cmake )
-
-# Client-only dependencies.
-if( BUILD_CLIENT )
-  find_package( OpenGL REQUIRED )
-  include( deps/semver/Dependency.cmake )
-  include( deps/SDL2/Dependency.cmake )
-  include( deps/libjpeg/Dependency.cmake )
-  include( deps/vorbisfile/Dependency.cmake )
-  #include( deps/opus/Dependency.cmake )
-  include( deps/OpenAL/Dependency.cmake )
-endif( )
-
-
-#===============================================================================
-# Collect the source lists
-#===============================================================================
-
-include( src/asm/Files.cmake )
-include( src/qcommon/Files.cmake )
-include( src/sys/Files.cmake )
-include( src/sdl/Files.cmake )
-include( src/null/Files.cmake )
-include( src/server/Files.cmake )
-include( src/game/Files.cmake )
-include( src/ui/Files.cmake )
-
-
-#===============================================================================
-# Build Tremulous
-#===============================================================================
-
-if( BUILD_CLIENT OR BUILD_SERVER )
-  add_subdirectory( src/script )
-  set( COMMON_LINK_LIBRARIES
-    ${CMAKE_DL_LIBS}
-    DEPS::lua
-    DEPS::sol
-    DEPS::restclient
-    DEPS::nettle
-    DEPS::zlib
-    script_api )
-endif( )
+add_subdirectory( external/zlib )
+add_subdirectory( external/libzip )
+add_subdirectory( external/lua )
+add_subdirectory( external/sol )
+add_subdirectory( external/rapidjson )
 
 if( BUILD_CLIENT )
-  add_subdirectory( src/client )
-  add_subdirectory( src/renderercommon )
-  add_subdirectory( src/renderergl1 )
-  add_subdirectory( src/renderergl2 )
+  add_subdirectory( external/libogg )
+  add_subdirectory( external/libvorbis )
+  add_subdirectory( external/libjpeg-turbo )
 endif( )
 
-if( BUILD_SERVER )
-  add_subdirectory( src/server )
+#-------------------------------------------------------------------------------
+# Tremulous Components
+#-------------------------------------------------------------------------------
+
+# Pass the engine options to the engine build system.
+set( ENGINE_CMAKE_ARGS ${TREMULOUS_CMAKE_ARGS} )
+foreach( option IN LISTS ENGINE_OPTIONS )
+  list( APPEND ENGINE_CMAKE_ARGS "-D${option}=${${option}}" )
+endforeach( )
+
+# Engine dependencies.
+set( ENGINE_DEPENDS zlib lua sol rapidjson )
+if( BUILD_CLIENT )
+  list( APPEND ENGINE_DEPENDS libogg libvorbis libjpeg-turbo )
 endif( )
 
-if( BUILD_GAME )
-  add_subdirectory( src/tools )
-  add_subdirectory( src/game )
-  add_subdirectory( src/cgame )
-  add_subdirectory( src/ui )
-endif( )
+# Tremulous engine.
+ExternalProject_Add( tremulous
+  DEPENDS ${ENGINE_DEPENDS}
+  BUILD_ALWAYS TRUE
+  PREFIX "${BUILD_PREFIX}"
+  SOURCE_DIR "${PROJECT_SOURCE_DIR}/tremulous"
+  BINARY_DIR "${PROJECT_BINARY_DIR}/tremulous"
+  STAMP_DIR "${PROJECT_BINARY_DIR}/tremulous/stamp"
+  INSTALL_DIR "${CMAKE_INSTALL_PREFIX}"
+  CMAKE_ARGS ${ENGINE_CMAKE_ARGS}
+  CMAKE_CACHE_ARGS ${TREMULOUS_CMAKE_CACHE_ARGS} )
 
-add_subdirectory( data )
-add_subdirectory( docs )
+# Essential assets.
+ExternalProject_Add( tremulous-game-base
+  DEPENDS tremulous
+  BUILD_ALWAYS TRUE
+  PREFIX "${BUILD_PREFIX}"
+  SOURCE_DIR "${PROJECT_SOURCE_DIR}/tremulous-game-base"
+  BINARY_DIR "${PROJECT_BINARY_DIR}/tremulous-game-base"
+  STAMP_DIR "${PROJECT_BINARY_DIR}/tremulous-game-base/stamp"
+  INSTALL_DIR "${CMAKE_INSTALL_PREFIX}"
+  CMAKE_ARGS ${TREMULOUS_CMAKE_ARGS}
+  CMAKE_CACHE_ARGS ${TREMULOUS_CMAKE_CACHE_ARGS} )
 
-install( FILES COPYING DESTINATION "${DOC_INSTALL_DIR}" )
+# GPP game mod.
+ExternalProject_Add( tremulous-game-gpp
+  DEPENDS tremulous-game-base
+  BUILD_ALWAYS TRUE
+  PREFIX "${BUILD_PREFIX}"
+  SOURCE_DIR "${PROJECT_SOURCE_DIR}/tremulous-game-gpp"
+  BINARY_DIR "${PROJECT_BINARY_DIR}/tremulous-game-gpp"
+  STAMP_DIR "${PROJECT_BINARY_DIR}/tremulous-game-gpp/stamp"
+  INSTALL_DIR "${CMAKE_INSTALL_PREFIX}"
+  CMAKE_ARGS ${TREMULOUS_CMAKE_ARGS}
+  CMAKE_CACHE_ARGS ${TREMULOUS_CMAKE_CACHE_ARGS} )
+
+#-------------------------------------------------------------------------------
